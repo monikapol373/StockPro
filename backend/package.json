@@ -1,0 +1,13 @@
+{
+  "name": "stockpro-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "StockPro sync server (Phase 1): key-value API backed by SQLite",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test.mjs"
+  }
+}
