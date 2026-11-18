@@ -5,11 +5,7 @@ import AuthShell, { Field } from "../components/AuthShell";
 
 const REMEMBER_KEY = "sp_remember_email";
 const getRemembered = () => {
-  try {
-    return localStorage.getItem(REMEMBER_KEY) || "";
-  } catch {
-    return "";
-  }
+  try { return localStorage.getItem(REMEMBER_KEY) || ""; } catch { return ""; }
 };
 
 const Login = () => {
@@ -28,22 +24,18 @@ const Login = () => {
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    setTimeout(() => {
-      const res = login(form);
-      setLoading(false);
-      if (!res.ok) return setError(res.error);
-      try {
-        if (remember) localStorage.setItem(REMEMBER_KEY, form.email.trim().toLowerCase());
-        else localStorage.removeItem(REMEMBER_KEY);
-      } catch {
-        /* ignore */
-      }
-      navigate("/", { replace: true });
-    }, 700);
+    const res = await login(form);
+    setLoading(false);
+    if (!res.ok) return setError(res.error);
+    try {
+      if (remember) localStorage.setItem(REMEMBER_KEY, form.email.trim().toLowerCase());
+      else localStorage.removeItem(REMEMBER_KEY);
+    } catch { /* ignore */ }
+    navigate("/", { replace: true });
   };
 
   return (

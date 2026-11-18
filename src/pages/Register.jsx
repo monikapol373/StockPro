@@ -26,19 +26,17 @@ const Register = () => {
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const score = form.password ? strength(form.password) : 0;
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (form.name.trim().length < 2) return setError("Enter your full name.");
     if (form.password.length < 6) return setError("Password must be at least 6 characters.");
     if (form.password !== form.confirm) return setError("Passwords do not match.");
     setLoading(true);
-    setTimeout(() => {
-      const res = register(form);
-      setLoading(false);
-      if (!res.ok) return setError(res.error);
-      navigate("/login", { replace: true, state: { registered: true } });
-    }, 700);
+    const res = await register(form);
+    setLoading(false);
+    if (!res.ok) return setError(res.error);
+    navigate("/", { replace: true });
   };
 
   return (

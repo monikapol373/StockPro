@@ -2,11 +2,12 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createStore } from "./store.js";
+import { connectDB } from "./db.js";
+import { KV } from "./models.js";
+import { buildAuthRoutes, verifyToken } from "./auth.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-/* ---------- tiny .env loader (no dependency) ---------- */
 function loadEnv(file = path.join(HERE, ".env")) {
   if (!fs.existsSync(file)) return;
   for (const raw of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
@@ -20,11 +21,8 @@ function loadEnv(file = path.join(HERE, ".env")) {
   }
 }
 
-/* ---------- rules ---------- */
 const KEY_RE = /^[A-Za-z0-9:_.-]{1,100}$/;
-// Login data must never be stored on the server in this phase (passwords are plain text in the browser).
-const BLOCKED_KEYS = new Set(["stockpro:users", "stockpro:session"]);
-const MAX_BODY = 5 * 1024 * 1024; // 5 MB
+const MAX_BODY = 5 * 1024 * 1024;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -62,8 +60,7 @@ function makeCors(allowedList) {
   };
 }
 
-/* ---------- app ---------- */
-export function buildServer(store, { corsOrigin = "" } = {}) {
+export function buildServer({ corsOrigin = "" } = {}) {
   const allow = makeCors(corsOrigin);
 
   const send = (res, status, body) => {
@@ -75,15 +72,15 @@ export function buildServer(store, { corsOrigin = "" } = {}) {
     res.end(text);
   };
 
+  const { handleRegister, handleLogin } = buildAuthRoutes(readBody, send, HttpError);
+
   const parseKey = (raw) => {
     let key;
-    try {
-      key = decodeURIComponent(raw);
-    } catch {
+    try { key = decodeURIComponent(raw); } catch {
       throw new HttpError(400, "Invalid key encoding.");
     }
-    if (!KEY_RE.test(key)) throw new HttpError(400, "Invalid key. Use letters, numbers and : _ . - (max 100 chars).");
-    if (BLOCKED_KEYS.has(key)) throw new HttpError(403, "This key is never stored on the server.");
+    if (!KEY_RE.test(key))
+      throw new HttpError(400, "Invalid key. Use letters, numbers and : _ . - (max 100 chars).");
     return key;
   };
 
@@ -96,7 +93,7 @@ export function buildServer(store, { corsOrigin = "" } = {}) {
       res.setHeader("Access-Control-Allow-Origin", allowed);
       res.setHeader("Vary", "Origin");
       res.setHeader("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.setHeader("Access-Control-Max-Age", "600");
     }
 
@@ -111,20 +108,41 @@ export function buildServer(store, { corsOrigin = "" } = {}) {
       }
 
       const url = new URL(req.url, "http://localhost");
-      const parts = url.pathname.split("/").filter(Boolean); // ["data", ":key"]
+      const parts = url.pathname.split("/").filter(Boolean);
 
-      if (req.method === "GET" && parts.length === 1 && parts[0] === "health") {
-        return send(res, 200, { ok: true, store: store.kind, keys: store.list().length });
+      // health
+      if (req.method === "GET" && parts[0] === "health") {
+        const count = await KV.countDocuments();
+        return send(res, 200, { ok: true, store: "mongodb", keys: count });
       }
 
-      if (parts[0] !== "data" || parts.length > 2) {
+      // auth routes
+      if (parts[0] === "auth") {
+        if (parts[1] === "register" && req.method === "POST")
+          return await handleRegister(req, res);
+        if (parts[1] === "login" && req.method === "POST")
+          return await handleLogin(req, res);
         throw new HttpError(404, "Not found.");
+      }
+
+      // data routes — token required
+      if (parts[0] !== "data" || parts.length > 2)
+        throw new HttpError(404, "Not found.");
+
+      try { verifyToken(req); } catch {
+        throw new HttpError(401, "Login required.");
       }
 
       // collection: /data
       if (parts.length === 1) {
-        if (req.method === "GET") return send(res, 200, { keys: store.list() });
-        if (req.method === "DELETE") return send(res, 200, { ok: true, removed: store.clear() });
+        if (req.method === "GET") {
+          const docs = await KV.find({}, { key: 1, value: 0, updatedAt: 1 });
+          return send(res, 200, { keys: docs.map(d => ({ key: d.key, updatedAt: d.updatedAt })) });
+        }
+        if (req.method === "DELETE") {
+          const result = await KV.deleteMany({});
+          return send(res, 200, { ok: true, removed: result.deletedCount });
+        }
         throw new HttpError(405, "Method not allowed.");
       }
 
@@ -132,28 +150,30 @@ export function buildServer(store, { corsOrigin = "" } = {}) {
       const key = parseKey(parts[1]);
 
       if (req.method === "GET") {
-        const row = store.get(key);
-        if (!row) throw new HttpError(404, "Key not found.");
-        return send(res, 200, { value: JSON.parse(row.value), updatedAt: row.updatedAt });
+        const doc = await KV.findOne({ key });
+        if (!doc) throw new HttpError(404, "Key not found.");
+        return send(res, 200, { value: doc.value, updatedAt: doc.updatedAt });
       }
 
       if (req.method === "PUT") {
         const raw = await readBody(req);
         let body;
-        try {
-          body = JSON.parse(raw);
-        } catch {
+        try { body = JSON.parse(raw); } catch {
           throw new HttpError(400, "Body must be valid JSON.");
         }
-        if (!body || typeof body !== "object" || body.value === undefined) {
+        if (!body || typeof body !== "object" || body.value === undefined)
           throw new HttpError(400, 'Body must look like { "value": ... }.');
-        }
-        store.put(key, JSON.stringify(body.value));
+        await KV.findOneAndUpdate(
+          { key },
+          { key, value: body.value, updatedAt: new Date() },
+          { upsert: true, new: true }
+        );
         return send(res, 200, { ok: true });
       }
 
       if (req.method === "DELETE") {
-        return send(res, 200, { ok: true, removed: store.delete(key) ? 1 : 0 });
+        const result = await KV.deleteOne({ key });
+        return send(res, 200, { ok: true, removed: result.deletedCount });
       }
 
       throw new HttpError(405, "Method not allowed.");
@@ -165,27 +185,21 @@ export function buildServer(store, { corsOrigin = "" } = {}) {
   });
 }
 
-/* ---------- start (only when run directly) ---------- */
 const isMain = process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
 
 if (isMain) {
   loadEnv();
+  await connectDB();
   const PORT = Number(process.env.PORT) || 5000;
-  const DATA_DIR = path.resolve(HERE, process.env.DATA_DIR || "./data");
-  const store = await createStore(DATA_DIR, (process.env.STORE || "sqlite").toLowerCase());
-  const server = buildServer(store, { corsOrigin: process.env.CORS_ORIGIN || "" });
+  const server = buildServer({ corsOrigin: process.env.CORS_ORIGIN || "" });
 
   server.listen(PORT, () => {
     console.log(`StockPro server running on http://localhost:${PORT}`);
-    console.log(`Database: ${store.kind}  (${store.location})`);
   });
 
   const stop = () => {
     console.log("\nShutting down...");
-    server.close(() => {
-      store.close();
-      process.exit(0);
-    });
+    server.close(() => process.exit(0));
   };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
