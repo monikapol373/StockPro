@@ -4,7 +4,6 @@ Inventory and manufacturing management app for small factories. Tracks raw
 materials, builds finished goods from a Bill of Materials, and warns you
 before a shortage turns into a late customer order.
 
-**Live demo:** YOUR-LIVE-LINK
 
 ## Features
 
