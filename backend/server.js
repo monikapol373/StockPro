@@ -166,7 +166,7 @@ export function buildServer({ corsOrigin = "" } = {}) {
         await KV.findOneAndUpdate(
           { key },
           { key, value: body.value, updatedAt: new Date() },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
         return send(res, 200, { ok: true });
       }
