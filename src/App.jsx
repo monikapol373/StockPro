@@ -20,6 +20,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SmartReorder from "./pages/SmartReorder";
+import UserManagement from "./pages/UserManagement";
 
 const App = () => {
   return (
@@ -47,6 +48,7 @@ const App = () => {
           <Route path="/assistant" element={<Assistant />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           <Route path="/reorder" element={<SmartReorder />} />
+          <Route path="/users" element={<ProtectedRoute><UserManagement/></ProtectedRoute>}/>
         </Route>
       </Route>
     </Routes>

@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectDB } from "./db.js";
 import { KV } from "./models.js";
-import { buildAuthRoutes, verifyToken } from "./auth.js";
+import { buildAuthRoutes, verifyToken, requireRole } from "./auth.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -72,7 +72,8 @@ export function buildServer({ corsOrigin = "" } = {}) {
     res.end(text);
   };
 
-  const { handleRegister, handleLogin } = buildAuthRoutes(readBody, send, HttpError);
+  const { handleRegister, handleLogin, handleGetUsers, handleUpdateUser } = 
+    buildAuthRoutes(readBody, send, HttpError);
 
   const parseKey = (raw) => {
     let key;
@@ -92,7 +93,7 @@ export function buildServer({ corsOrigin = "" } = {}) {
     if (allowed) {
       res.setHeader("Access-Control-Allow-Origin", allowed);
       res.setHeader("Vary", "Origin");
-      res.setHeader("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS, POST, PATCH");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.setHeader("Access-Control-Max-Age", "600");
     }
@@ -125,28 +126,46 @@ export function buildServer({ corsOrigin = "" } = {}) {
         throw new HttpError(404, "Not found.");
       }
 
+      // admin: users management
+      if (parts[0] === "admin" && parts[1] === "users") {
+        let decoded;
+        try { decoded = verifyToken(req); } catch {
+          throw new HttpError(401, "Login required.");
+        }
+        try { requireRole("admin")(decoded); } catch {
+          throw new HttpError(403, "Admin access required.");
+        }
+        if (req.method === "GET") return await handleGetUsers(req, res);
+        if (req.method === "PATCH" && parts[2]) 
+          return await handleUpdateUser(req, res, parts[2]);
+        throw new HttpError(405, "Method not allowed.");
+      }
+
       // data routes — token required
       if (parts[0] !== "data" || parts.length > 2)
         throw new HttpError(404, "Not found.");
 
-      try { verifyToken(req); } catch {
+      let decoded;
+      try { decoded = verifyToken(req); } catch {
         throw new HttpError(401, "Login required.");
       }
 
-      // collection: /data
+      // Staff: fakt read access — write blocked
+      const isReadOnly = decoded.role === "staff";
+
       if (parts.length === 1) {
         if (req.method === "GET") {
-          const docs = await KV.find({}, { key: 1, value: 0, updatedAt: 1 });
+          const docs = await KV.find({}, { key: 1, updatedAt: 1 });
           return send(res, 200, { keys: docs.map(d => ({ key: d.key, updatedAt: d.updatedAt })) });
         }
         if (req.method === "DELETE") {
+          if (isReadOnly) throw new HttpError(403, "Insufficient permissions.");
           const result = await KV.deleteMany({});
           return send(res, 200, { ok: true, removed: result.deletedCount });
         }
         throw new HttpError(405, "Method not allowed.");
       }
 
-      // item: /data/:key
       const key = parseKey(parts[1]);
 
       if (req.method === "GET") {
@@ -156,6 +175,7 @@ export function buildServer({ corsOrigin = "" } = {}) {
       }
 
       if (req.method === "PUT") {
+        if (isReadOnly) throw new HttpError(403, "Insufficient permissions.");
         const raw = await readBody(req);
         let body;
         try { body = JSON.parse(raw); } catch {
@@ -166,12 +186,13 @@ export function buildServer({ corsOrigin = "" } = {}) {
         await KV.findOneAndUpdate(
           { key },
           { key, value: body.value, updatedAt: new Date() },
-          { upsert: true, returnDocument: 'after' }
+          { upsert: true, new: true }
         );
         return send(res, 200, { ok: true });
       }
 
       if (req.method === "DELETE") {
+        if (isReadOnly) throw new HttpError(403, "Insufficient permissions.");
         const result = await KV.deleteOne({ key });
         return send(res, 200, { ok: true, removed: result.deletedCount });
       }

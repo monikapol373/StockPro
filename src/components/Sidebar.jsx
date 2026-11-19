@@ -40,10 +40,13 @@ const GROUPS = [
       { to: "/reality-check", label: "Reality Check", icon: "reality" },
     ],
   },
-  {
-    title: "System",
-    items: [{ to: "/settings", label: "Settings", icon: "settings" }],
-  },
+ {
+  title: "System",
+  items: [
+    { to: "/users", label: "User Management", icon: "settings" },
+    { to: "/settings", label: "Settings", icon: "settings" },
+  ],
+},
 ];
 
 const Sidebar = ({ open, onNavigate }) => {

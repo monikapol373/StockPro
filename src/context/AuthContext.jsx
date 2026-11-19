@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const data = await apiRegister({ name, email, password });
         sessionStorage.setItem(SESSION_KEY, data.token);
-        const session = { name: data.name, email: data.email };
+        const session = { name: data.name, email: data.email, role: data.role };
         sessionStorage.setItem(SESSION_USER, JSON.stringify(session));
         setUser(session);
         return { ok: true };
@@ -30,18 +30,8 @@ export const AuthProvider = ({ children }) => {
         return { ok: false, error: err.message };
       }
     }
-    // fallback: browser only
-    const USERS_KEY = "stockpro:users";
-    try {
-      const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-      const mail = email.trim().toLowerCase();
-      if (users.some((u) => u.email === mail))
-        return { ok: false, error: "This email is already registered." };
-      localStorage.setItem(USERS_KEY, JSON.stringify([...users, { name: name.trim(), email: mail, password }]));
-      return { ok: true };
-    } catch {
-      return { ok: false, error: "Registration failed." };
-    }
+    // fallback
+    return { ok: false, error: "Server not available." };
   };
 
   const login = async ({ email, password }) => {
@@ -49,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const data = await apiLogin({ email, password });
         sessionStorage.setItem(SESSION_KEY, data.token);
-        const session = { name: data.name, email: data.email };
+        const session = { name: data.name, email: data.email, role: data.role };
         sessionStorage.setItem(SESSION_USER, JSON.stringify(session));
         setUser(session);
         return { ok: true };
@@ -57,22 +47,7 @@ export const AuthProvider = ({ children }) => {
         return { ok: false, error: err.message };
       }
     }
-    // fallback: browser only
-    const USERS_KEY = "stockpro:users";
-    try {
-      const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-      const mail = email.trim().toLowerCase();
-      if (users.length === 0) return { ok: false, error: "No account found. Please register first." };
-      const account = users.find((u) => u.email === mail);
-      if (!account) return { ok: false, error: "No account found with this email." };
-      if (account.password !== password) return { ok: false, error: "Wrong password." };
-      const session = { name: account.name, email: account.email };
-      sessionStorage.setItem(SESSION_USER, JSON.stringify(session));
-      setUser(session);
-      return { ok: true };
-    } catch {
-      return { ok: false, error: "Login failed." };
-    }
+    return { ok: false, error: "Server not available." };
   };
 
   const logout = () => {
@@ -81,8 +56,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Role helpers
+  const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager" || user?.role === "admin";
+  const isStaff = user?.role === "staff";
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isAdmin, isManager, isStaff }}>
       {children}
     </AuthContext.Provider>
   );
