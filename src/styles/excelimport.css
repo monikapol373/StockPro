@@ -1,0 +1,218 @@
+.xi-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.xi-modal {
+  background: var(--card-bg, #1e293b);
+  border-radius: 16px;
+  border: 1px solid var(--border, #334155);
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.xi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border, #334155);
+}
+
+.xi-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  margin: 0;
+}
+
+.xi-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.xi-body {
+  padding: 1.5rem;
+}
+
+.xi-info p {
+  color: var(--text-primary, #f1f5f9);
+  margin-bottom: 0.5rem;
+}
+
+.xi-info code {
+  display: block;
+  background: #0f172a;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  color: #6366f1;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.xi-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #94a3b8) !important;
+}
+
+.xi-btn-template {
+  background: none;
+  border: 1px solid #6366f1;
+  color: #6366f1;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  display: block;
+}
+
+.xi-upload-area {
+  border: 2px dashed var(--border, #334155);
+  border-radius: 12px;
+  padding: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.xi-upload-area:hover {
+  border-color: #6366f1;
+}
+
+.xi-upload-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.xi-upload-area p {
+  color: var(--text-secondary, #94a3b8);
+  margin: 0;
+}
+
+.xi-errors {
+  background: #ef444422;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.xi-errors p {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin: 0.2rem 0;
+}
+
+.xi-preview-title {
+  font-weight: 600;
+  color: var(--text-primary, #f1f5f9);
+  margin-bottom: 1rem;
+}
+
+.xi-table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  margin-bottom: 1.25rem;
+}
+
+.xi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.xi-table th {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border, #334155);
+  background: #0f172a;
+}
+
+.xi-table td {
+  padding: 0.6rem 0.75rem;
+  color: var(--text-primary, #f1f5f9);
+  border-bottom: 1px solid var(--border, #334155);
+}
+
+.xi-table tr:last-child td {
+  border-bottom: none;
+}
+
+.xi-more {
+  text-align: center;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.82rem;
+  padding: 0.5rem;
+}
+
+.xi-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.xi-btn-back {
+  background: none;
+  border: 1px solid var(--border, #334155);
+  color: var(--text-secondary, #94a3b8);
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.xi-btn-import {
+  background: #6366f1;
+  border: none;
+  color: white;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.xi-btn-import:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.xi-done {
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+
+.xi-done-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.xi-done h3 {
+  color: var(--text-primary, #f1f5f9);
+  margin-bottom: 0.5rem;
+}
+
+.xi-done p {
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 1.5rem;
+}

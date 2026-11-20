@@ -8,6 +8,7 @@ import { getStockStatus, getDefaultMinStock } from "../utils/stock";
 import { getOrderStatus } from "../utils/orders";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useToast } from "../context/ToastContext";
+import ExcelImport from "../components/ExcelImport";
 
 const CATEGORIES = [
   "Raw Material",
@@ -42,7 +43,6 @@ const emptyStock = {
   reason: "",
 };
 
-// CSV helpers
 const escapeCsvValue = (value) => {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, '""')}"`;
@@ -55,7 +55,6 @@ const parseCSVLine = (line) => {
 
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-
     if (char === '"') {
       if (insideQuotes && line[i + 1] === '"') {
         value += '"';
@@ -70,7 +69,6 @@ const parseCSVLine = (line) => {
       value += char;
     }
   }
-
   values.push(value.trim());
   return values;
 };
@@ -96,19 +94,15 @@ const Inventory = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [formError, setFormError] = useState("");
-
   const [stockProduct, setStockProduct] = useState(null);
   const [stockForm, setStockForm] = useState(emptyStock);
   const [stockError, setStockError] = useState("");
-
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [notice, setNotice] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const nextProductId = () => {
@@ -116,244 +110,124 @@ const Inventory = () => {
       const n = parseInt(String(p.id).replace(/\D/g, ""), 10);
       return Number.isNaN(n) ? m : Math.max(m, n);
     }, 0);
-
     return `PRD-${String(max + 1).padStart(3, "0")}`;
   };
 
-  // EXPORT INVENTORY TO CSV
   const handleExportCSV = () => {
-    const headers = [
-      "id",
-      "name",
-      "category",
-      "quantity",
-      "unit",
-      "price",
-      "minStock",
-    ];
-
+    const headers = ["id", "name", "category", "quantity", "unit", "price", "minStock"];
     const rows = products.map((product) =>
-      headers
-        .map((header) => escapeCsvValue(product[header]))
-        .join(",")
+      headers.map((header) => escapeCsvValue(product[header])).join(",")
     );
-
-    const csvContent = [
-      headers.join(","),
-      ...rows,
-    ].join("\r\n");
-
-    const blob = new Blob(
-      ["\uFEFF" + csvContent],
-      { type: "text/csv;charset=utf-8;" }
-    );
-
+    const csvContent = [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-
     link.href = url;
     link.download = "stockpro-inventory.csv";
     document.body.appendChild(link);
     link.click();
     link.remove();
-
     URL.revokeObjectURL(url);
     toast.success("Inventory CSV exported successfully.");
   };
 
-  // IMPORT PRODUCTS FROM CSV
   const handleImportCSV = (event) => {
     const file = event.target.files?.[0];
-
     if (!file) return;
-
     if (!file.name.toLowerCase().endsWith(".csv")) {
       toast.error("Please select a CSV file.");
       event.target.value = "";
       return;
     }
-
     const reader = new FileReader();
-
     reader.onload = () => {
       try {
-        const content = String(reader.result ?? "")
-          .replace(/^\uFEFF/, "");
-
-        const lines = content
-          .split(/\r?\n/)
-          .filter((line) => line.trim() !== "");
-
+        const content = String(reader.result ?? "").replace(/^\uFEFF/, "");
+        const lines = content.split(/\r?\n/).filter((line) => line.trim() !== "");
         if (lines.length < 2) {
           toast.error("CSV file contains no product rows.");
           return;
         }
-
-        const headers = parseCSVLine(lines[0]).map(
-          (header) => header.trim().toLowerCase()
-        );
-
-        const requiredHeaders = [
-          "name",
-          "category",
-          "quantity",
-          "unit",
-          "price",
-        ];
-
-        const missingHeaders = requiredHeaders.filter(
-          (header) => !headers.includes(header)
-        );
-
+        const headers = parseCSVLine(lines[0]).map((header) => header.trim().toLowerCase());
+        const requiredHeaders = ["name", "category", "quantity", "unit", "price"];
+        const missingHeaders = requiredHeaders.filter((header) => !headers.includes(header));
         if (missingHeaders.length > 0) {
-          toast.error(
-            `Missing columns: ${missingHeaders.join(", ")}`
-          );
+          toast.error(`Missing columns: ${missingHeaders.join(", ")}`);
           return;
         }
-
         const existingNames = new Set(
-          products.map((product) =>
-            String(product.name).trim().toLowerCase()
-          )
+          products.map((product) => String(product.name).trim().toLowerCase())
         );
-
         const importedProducts = [];
         const errors = [];
-
         let maxId = products.reduce((max, product) => {
-          const number = parseInt(
-            String(product.id).replace(/\D/g, ""),
-            10
-          );
-
-          return Number.isNaN(number)
-            ? max
-            : Math.max(max, number);
+          const number = parseInt(String(product.id).replace(/\D/g, ""), 10);
+          return Number.isNaN(number) ? max : Math.max(max, number);
         }, 0);
 
         for (let i = 1; i < lines.length; i++) {
           const values = parseCSVLine(lines[i]);
-
           if (values.length !== headers.length) {
-            errors.push(
-              `Row ${i + 1}: incorrect number of columns`
-            );
+            errors.push(`Row ${i + 1}: incorrect number of columns`);
             continue;
           }
-
-          const row = Object.fromEntries(
-            headers.map((header, index) => [
-              header,
-              values[index],
-            ])
-          );
-
+          const row = Object.fromEntries(headers.map((header, index) => [header, values[index]]));
           const name = row.name?.trim();
           const categoryName = row.category?.trim();
           const unit = row.unit?.trim();
           const quantity = Number(row.quantity);
           const price = Number(row.price);
-
           const minStock =
             row.minstock === undefined || row.minstock === ""
               ? undefined
               : Number(row.minstock);
 
           if (!name || !categoryName || !unit) {
-            errors.push(
-              `Row ${i + 1}: name, category and unit are required`
-            );
+            errors.push(`Row ${i + 1}: name, category and unit are required`);
             continue;
           }
-
           if (!CATEGORIES.includes(categoryName)) {
-            errors.push(
-              `Row ${i + 1}: invalid category "${categoryName}"`
-            );
+            errors.push(`Row ${i + 1}: invalid category "${categoryName}"`);
             continue;
           }
-
           if (!UNITS.includes(unit)) {
-            errors.push(
-              `Row ${i + 1}: invalid unit "${unit}"`
-            );
+            errors.push(`Row ${i + 1}: invalid unit "${unit}"`);
             continue;
           }
-
           if (
-            !Number.isInteger(quantity) ||
-            quantity < 0 ||
-            !Number.isFinite(price) ||
-            price < 0 ||
-            (
-              minStock !== undefined &&
-              (!Number.isInteger(minStock) || minStock < 0)
-            )
+            !Number.isInteger(quantity) || quantity < 0 ||
+            !Number.isFinite(price) || price < 0 ||
+            (minStock !== undefined && (!Number.isInteger(minStock) || minStock < 0))
           ) {
-            errors.push(
-              `Row ${i + 1}: invalid quantity, price or minStock`
-            );
+            errors.push(`Row ${i + 1}: invalid quantity, price or minStock`);
             continue;
           }
-
           const normalizedName = name.toLowerCase();
-
           const duplicateInFile = importedProducts.some(
-            (product) =>
-              product.name.trim().toLowerCase() === normalizedName
+            (product) => product.name.trim().toLowerCase() === normalizedName
           );
-
-          if (
-            existingNames.has(normalizedName) ||
-            duplicateInFile
-          ) {
-            errors.push(
-              `Row ${i + 1}: "${name}" already exists; skipped`
-            );
+          if (existingNames.has(normalizedName) || duplicateInFile) {
+            errors.push(`Row ${i + 1}: "${name}" already exists; skipped`);
             continue;
           }
-
           maxId++;
-
           const newProduct = {
             id: `PRD-${String(maxId).padStart(3, "0")}`,
-            name,
-            category: categoryName,
-            quantity,
-            unit,
-            price,
-            minStock,
+            name, category: categoryName, quantity, unit, price, minStock,
           };
-
           newProduct.status = getStockStatus(newProduct);
-
           importedProducts.push(newProduct);
         }
 
         if (importedProducts.length > 0) {
-          setProducts((previousProducts) => [
-            ...previousProducts,
-            ...importedProducts,
-          ]);
-
-          toast.success(
-            `${importedProducts.length} product(s) imported successfully.`
-          );
+          setProducts((prev) => [...prev, ...importedProducts]);
+          toast.success(`${importedProducts.length} product(s) imported successfully.`);
         }
-
         if (errors.length > 0) {
           console.warn("CSV import errors:", errors);
-
-          toast.error(
-            `${errors.length} row(s) skipped. Open the browser console (F12) to see the reasons.`
-          );
+          toast.error(`${errors.length} row(s) skipped. Check browser console for details.`);
         }
-
-        if (
-          importedProducts.length === 0 &&
-          errors.length === 0
-        ) {
+        if (importedProducts.length === 0 && errors.length === 0) {
           toast.info("No new products to import.");
         }
       } catch (error) {
@@ -363,13 +237,25 @@ const Inventory = () => {
         event.target.value = "";
       }
     };
-
     reader.onerror = () => {
       toast.error("Failed to read the selected file.");
       event.target.value = "";
     };
-
     reader.readAsText(file);
+  };
+
+  const handleExcelImport = (newProducts) => {
+    let maxId = products.reduce((m, p) => {
+      const n = parseInt(String(p.id).replace(/\D/g, ""), 10);
+      return Number.isNaN(n) ? m : Math.max(m, n);
+    }, 0);
+    const withIds = newProducts.map((p) => ({
+      ...p,
+      id: `PRD-${String(++maxId).padStart(3, "0")}`,
+      status: getStockStatus(p),
+    }));
+    setProducts([...products, ...withIds]);
+    toast.success(`${withIds.length} products imported from Excel successfully.`);
   };
 
   const openAddModal = () => {
@@ -389,113 +275,48 @@ const Inventory = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const name = formData.name.trim();
     const price = Number(formData.price);
     const qty = Number(formData.quantity);
+    const minStockRaw = formData.minStock === "" ? undefined : Number(formData.minStock);
 
-    const minStockRaw =
-      formData.minStock === ""
-        ? undefined
-        : Number(formData.minStock);
-
-    if (!name) {
-      setFormError("Product name is required.");
-      return;
+    if (!name) { setFormError("Product name is required."); return; }
+    if (minStockRaw !== undefined && (!Number.isInteger(minStockRaw) || minStockRaw < 0)) {
+      setFormError("Low stock alert level must be a whole number, 0 or more."); return;
     }
-
-    if (
-      minStockRaw !== undefined &&
-      (!Number.isInteger(minStockRaw) || minStockRaw < 0)
-    ) {
-      setFormError(
-        "Low stock alert level must be a whole number, 0 or more."
-      );
-      return;
+    if (!Number.isFinite(price) || price < 0) { setFormError("Price must be 0 or more."); return; }
+    if (!editingProduct && (!Number.isInteger(qty) || qty < 0)) {
+      setFormError("Quantity must be a whole number, 0 or more."); return;
     }
-
-    if (!Number.isFinite(price) || price < 0) {
-      setFormError("Price must be 0 or more.");
-      return;
-    }
-
-    if (
-      !editingProduct &&
-      (!Number.isInteger(qty) || qty < 0)
-    ) {
-      setFormError(
-        "Quantity must be a whole number, 0 or more."
-      );
-      return;
-    }
-
     const duplicate = products.some(
-      (product) =>
-        product.name.toLowerCase() === name.toLowerCase() &&
-        product.id !== editingProduct?.id
+      (product) => product.name.toLowerCase() === name.toLowerCase() && product.id !== editingProduct?.id
     );
-
-    if (duplicate) {
-      setFormError("A product with this name already exists.");
-      return;
-    }
+    if (duplicate) { setFormError("A product with this name already exists."); return; }
 
     if (editingProduct) {
-      setProducts(
-        products.map((product) =>
-          product.id === editingProduct.id
-            ? {
-                ...product,
-                name,
-                category: formData.category,
-                unit: formData.unit,
-                price,
-                minStock: minStockRaw,
-                status: getStockStatus({
-                  ...product,
-                  minStock: minStockRaw,
-                }),
-              }
-            : product
-        )
-      );
+      setProducts(products.map((product) =>
+        product.id === editingProduct.id
+          ? { ...product, name, category: formData.category, unit: formData.unit, price, minStock: minStockRaw, status: getStockStatus({ ...product, minStock: minStockRaw }) }
+          : product
+      ));
     } else {
       const newProduct = {
-        id: nextProductId(),
-        name,
-        category: formData.category,
-        quantity: qty,
-        unit: formData.unit,
-        price,
-        minStock: minStockRaw,
+        id: nextProductId(), name, category: formData.category,
+        quantity: qty, unit: formData.unit, price, minStock: minStockRaw,
       };
-
       newProduct.status = getStockStatus(newProduct);
-
       setProducts([...products, newProduct]);
     }
-
-    toast.success(
-      editingProduct
-        ? `${name} updated`
-        : `${name} added to inventory`
-    );
-
+    toast.success(editingProduct ? `${name} updated` : `${name} added to inventory`);
     handleCloseModal();
   };
 
   const handleEdit = (product) => {
     setEditingProduct(product);
-
     setFormData({
-      name: product.name,
-      category: product.category,
-      quantity: product.quantity,
-      unit: product.unit,
-      price: product.price,
-      minStock: product.minStock ?? "",
+      name: product.name, category: product.category, quantity: product.quantity,
+      unit: product.unit, price: product.price, minStock: product.minStock ?? "",
     });
-
     setFormError("");
     setNotice("");
     setShowModal(true);
@@ -503,136 +324,62 @@ const Inventory = () => {
 
   const requestDelete = (product) => {
     const reasons = [];
-
     const usedInBoms = boms.filter(
-      (bom) =>
-        bom.finishedProductId === product.id ||
-        (bom.components ?? []).some(
-          (component) => component.productId === product.id
-        )
+      (bom) => bom.finishedProductId === product.id ||
+        (bom.components ?? []).some((component) => component.productId === product.id)
     );
-
     if (usedInBoms.length > 0) {
-      reasons.push(
-        `used in BOM: ${usedInBoms
-          .map((bom) => bom.finishedProductName)
-          .join(", ")}`
-      );
+      reasons.push(`used in BOM: ${usedInBoms.map((bom) => bom.finishedProductName).join(", ")}`);
     }
-
     const openPOs = orders.filter(
-      (order) =>
-        order.productId === product.id &&
-        getOrderStatus(order) !== "Received"
+      (order) => order.productId === product.id && getOrderStatus(order) !== "Received"
     );
-
     if (openPOs.length > 0) {
-      reasons.push(
-        `open purchase orders: ${openPOs
-          .map((order) => order.id)
-          .join(", ")}`
-      );
+      reasons.push(`open purchase orders: ${openPOs.map((order) => order.id).join(", ")}`);
     }
-
     const pendingCOs = customerOrders.filter(
-      (order) =>
-        order.productId === product.id &&
-        order.status === "Pending"
+      (order) => order.productId === product.id && order.status === "Pending"
     );
-
     if (pendingCOs.length > 0) {
-      reasons.push(
-        `pending customer orders: ${pendingCOs
-          .map((order) => order.id)
-          .join(", ")}`
-      );
+      reasons.push(`pending customer orders: ${pendingCOs.map((order) => order.id).join(", ")}`);
     }
-
     const activeProductions = productions.filter(
-      (production) =>
-        production.status !== "Completed" &&
-        boms.some(
-          (bom) =>
-            bom.id === production.bomId &&
-            bom.finishedProductId === product.id
-        )
+      (production) => production.status !== "Completed" &&
+        boms.some((bom) => bom.id === production.bomId && bom.finishedProductId === product.id)
     );
-
     if (activeProductions.length > 0) {
-      reasons.push(
-        `active production orders: ${activeProductions
-          .map((production) => production.id)
-          .join(", ")}`
-      );
+      reasons.push(`active production orders: ${activeProductions.map((production) => production.id).join(", ")}`);
     }
-
     if (reasons.length > 0) {
-      setNotice(
-        `"${product.name}" cannot be deleted: ${reasons.join("; ")}.`
-      );
-
-      toast.error(
-        `${product.name} is in use and cannot be deleted`
-      );
-
+      setNotice(`"${product.name}" cannot be deleted: ${reasons.join("; ")}.`);
+      toast.error(`${product.name} is in use and cannot be deleted`);
       return;
     }
-
     setNotice("");
     setDeleteTarget(product);
   };
 
   const confirmDelete = () => {
-    setProducts(
-      products.filter(
-        (product) => product.id !== deleteTarget.id
-      )
-    );
-
+    setProducts(products.filter((product) => product.id !== deleteTarget.id));
     toast.success(`${deleteTarget.name} deleted`);
     setDeleteTarget(null);
   };
 
   const filteredProducts = products.filter((product) => {
     const query = search.toLowerCase();
-
-    const matchesSearch =
-      product.name.toLowerCase().includes(query) ||
-      String(product.id).toLowerCase().includes(query);
-
-    const matchesCategory =
-      category === "All" || product.category === category;
-
+    const matchesSearch = product.name.toLowerCase().includes(query) || String(product.id).toLowerCase().includes(query);
+    const matchesCategory = category === "All" || product.category === category;
     return matchesSearch && matchesCategory;
   });
 
-  // SMART REORDER SUGGESTIONS
-  // Suggest enough stock to reach 2x the minimum stock level.
   const reorderSuggestions = products
     .map((product) => {
-      const reorderLevel = Number(
-        product.minStock ?? getDefaultMinStock()
-      );
-
+      const reorderLevel = Number(product.minStock ?? getDefaultMinStock());
       const currentQuantity = Number(product.quantity) || 0;
-
-      const suggestedQuantity = Math.max(
-        0,
-        reorderLevel * 2 - currentQuantity
-      );
-
-      return {
-        ...product,
-        reorderLevel,
-        currentQuantity,
-        suggestedQuantity,
-      };
+      const suggestedQuantity = Math.max(0, reorderLevel * 2 - currentQuantity);
+      return { ...product, reorderLevel, currentQuantity, suggestedQuantity };
     })
-    .filter(
-      (product) =>
-        product.reorderLevel > 0 &&
-        product.currentQuantity <= product.reorderLevel
-    )
+    .filter((product) => product.reorderLevel > 0 && product.currentQuantity <= product.reorderLevel)
     .sort((a, b) => a.currentQuantity - b.currentQuantity);
 
   const openStockModal = (product) => {
@@ -648,36 +395,23 @@ const Inventory = () => {
   };
 
   const handleStockChange = (e) => {
-    setStockForm({
-      ...stockForm,
-      [e.target.name]: e.target.value,
-    });
+    setStockForm({ ...stockForm, [e.target.name]: e.target.value });
   };
 
   const handleStockSubmit = (e) => {
     e.preventDefault();
-
     const qty = Number(stockForm.quantity);
-
     if (!Number.isInteger(qty) || qty < 0) {
-      setStockError(
-        "Quantity must be a whole number, 0 or more."
-      );
+      setStockError("Quantity must be a whole number, 0 or more.");
       return;
     }
-
     const result = recordMovement({
       productId: stockProduct.id,
       type: stockForm.type,
       quantity: qty,
       reason: stockForm.reason,
     });
-
-    if (!result.ok) {
-      setStockError(result.error);
-      return;
-    }
-
+    if (!result.ok) { setStockError(result.error); return; }
     toast.success(`Stock updated for ${stockProduct.name}`);
     closeStockModal();
   };
@@ -698,6 +432,7 @@ const Inventory = () => {
         onImportClick={() => fileInputRef.current?.click()}
         fileInputRef={fileInputRef}
         onImport={handleImportCSV}
+        onShowExcelImport={() => setShowImport(true)}
         onAdd={openAddModal}
         onStock={openStockModal}
         onEdit={handleEdit}
@@ -717,148 +452,58 @@ const Inventory = () => {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {showModal && (
+      {showImport && (
+        <ExcelImport
+          onImport={handleExcelImport}
+          onClose={() => setShowImport(false)}
+        />
+      )}
+
+            {showModal && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
               <div>
-                <h2>
-                  {editingProduct ? "Edit Product" : "Add New Product"}
-                </h2>
-
-                <p>
-                  {editingProduct
-                    ? "Update product details."
-                    : "Add a new item to your inventory."}
-                </p>
+                <h2>{editingProduct ? "Edit Product" : "Add New Product"}</h2>
+                <p>{editingProduct ? "Update product details." : "Add a new item to your inventory."}</p>
               </div>
-
-              <button
-                className="close-btn"
-                onClick={handleCloseModal}
-              >
-                ✕
-              </button>
+              <button className="close-btn" onClick={handleCloseModal}>✕</button>
             </div>
-
             <form onSubmit={handleSubmit}>
               <div className="form-grid">
                 <div className="form-group">
                   <label>Product Name</label>
-
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Enter product name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                  />
+                  <input type="text" name="name" placeholder="Enter product name" value={formData.name} onChange={handleChange} required />
                 </div>
-
                 <div className="form-group">
                   <label>Category</label>
-
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                  >
-                    {CATEGORIES.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
+                  <select name="category" value={formData.category} onChange={handleChange}>
+                    {CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label>
-                    Quantity{" "}
-                    {editingProduct &&
-                      "(change via 🔄 Update Stock)"}
-                  </label>
-
-                  <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Enter quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    min="0"
-                    step="1"
-                    required
-                    disabled={!!editingProduct}
-                  />
+                  <label>Quantity {editingProduct && "(change via 🔄 Update Stock)"}</label>
+                  <input type="number" name="quantity" placeholder="Enter quantity" value={formData.quantity} onChange={handleChange} min="0" step="1" required disabled={!!editingProduct} />
                 </div>
-
                 <div className="form-group">
                   <label>Unit</label>
-
-                  <select
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleChange}
-                  >
-                    {UNITS.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
+                  <select name="unit" value={formData.unit} onChange={handleChange}>
+                    {UNITS.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
-
                 <div className="form-group full-width">
                   <label>Price (₹)</label>
-
-                  <input
-                    type="number"
-                    name="price"
-                    placeholder="Enter price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    min="0"
-                    step="any"
-                    required
-                  />
+                  <input type="number" name="price" placeholder="Enter price" value={formData.price} onChange={handleChange} min="0" step="any" required />
                 </div>
-
                 <div className="form-group full-width">
-                  <label>
-                    Low stock alert at (optional, default{" "}
-                    {getDefaultMinStock()})
-                  </label>
-
-                  <input
-                    type="number"
-                    name="minStock"
-                    placeholder="Leave empty to use default"
-                    value={formData.minStock}
-                    onChange={handleChange}
-                    min="0"
-                    step="1"
-                  />
+                  <label>Low stock alert at (optional, default {getDefaultMinStock()})</label>
+                  <input type="number" name="minStock" placeholder="Leave empty to use default" value={formData.minStock} onChange={handleChange} min="0" step="1" />
                 </div>
               </div>
-
-              {formError && (
-                <p className="form-error">{formError}</p>
-              )}
-
+              {formError && <p className="form-error">{formError}</p>}
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={handleCloseModal}
-                >
-                  Cancel
-                </button>
-
-                <button type="submit" className="add-btn">
-                  {editingProduct
-                    ? "Update Product"
-                    : "Add Product"}
-                </button>
+                <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancel</button>
+                <button type="submit" className="add-btn">{editingProduct ? "Update Product" : "Add Product"}</button>
               </div>
             </form>
           </div>
@@ -871,86 +516,33 @@ const Inventory = () => {
             <div className="modal-header">
               <div>
                 <h2>Update Stock</h2>
-
-                <p>
-                  {stockProduct.name}: currently{" "}
-                  {stockProduct.quantity} {stockProduct.unit}
-                </p>
+                <p>{stockProduct.name}: currently {stockProduct.quantity} {stockProduct.unit}</p>
               </div>
-
-              <button
-                className="close-btn"
-                onClick={closeStockModal}
-              >
-                ✕
-              </button>
+              <button className="close-btn" onClick={closeStockModal}>✕</button>
             </div>
-
             <form onSubmit={handleStockSubmit}>
               <div className="form-grid">
                 <div className="form-group">
                   <label>Type</label>
-
-                  <select
-                    name="type"
-                    value={stockForm.type}
-                    onChange={handleStockChange}
-                  >
+                  <select name="type" value={stockForm.type} onChange={handleStockChange}>
                     <option value="IN">Stock In (add)</option>
                     <option value="OUT">Stock Out (remove)</option>
-                    <option value="ADJUST">
-                      Adjustment (set counted qty)
-                    </option>
+                    <option value="ADJUST">Adjustment (set counted qty)</option>
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label>
-                    {stockForm.type === "ADJUST"
-                      ? "Counted quantity"
-                      : "Quantity"}
-                  </label>
-
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={stockForm.quantity}
-                    onChange={handleStockChange}
-                    min="0"
-                    step="1"
-                    required
-                  />
+                  <label>{stockForm.type === "ADJUST" ? "Counted quantity" : "Quantity"}</label>
+                  <input type="number" name="quantity" value={stockForm.quantity} onChange={handleStockChange} min="0" step="1" required />
                 </div>
-
                 <div className="form-group full-width">
                   <label>Reason</label>
-
-                  <input
-                    type="text"
-                    name="reason"
-                    value={stockForm.reason}
-                    onChange={handleStockChange}
-                    placeholder="e.g. Received from supplier"
-                  />
+                  <input type="text" name="reason" value={stockForm.reason} onChange={handleStockChange} placeholder="e.g. Received from supplier" />
                 </div>
               </div>
-
-              {stockError && (
-                <p className="form-error">{stockError}</p>
-              )}
-
+              {stockError && <p className="form-error">{stockError}</p>}
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={closeStockModal}
-                >
-                  Cancel
-                </button>
-
-                <button type="submit" className="add-btn">
-                  Save
-                </button>
+                <button type="button" className="cancel-btn" onClick={closeStockModal}>Cancel</button>
+                <button type="submit" className="add-btn">Save</button>
               </div>
             </form>
           </div>
@@ -982,7 +574,7 @@ const LevelBar = ({ p }) => {
 const InventoryView = ({
   products, filtered, suggestions, search, setSearch, category, setCategory,
   notice, clearNotice, onExport, onImportClick, fileInputRef, onImport,
-  onAdd, onStock, onEdit, onDelete,
+  onShowExcelImport, onAdd, onStock, onEdit, onDelete,
 }) => {
   const [view, setView] = useState("grid");
 
@@ -1009,6 +601,7 @@ const InventoryView = ({
         <div className="inv-head-actions">
           <button type="button" className="inv-ghost" onClick={onExport}>Export CSV</button>
           <button type="button" className="inv-ghost" onClick={onImportClick}>Import CSV</button>
+          <button type="button" className="inv-ghost" onClick={onShowExcelImport}>Import Excel</button>
           <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={onImport} hidden />
           <button type="button" className="inv-primary" onClick={onAdd}>+ Add Product</button>
         </div>
@@ -1116,7 +709,10 @@ const InventoryView = ({
         <div className="inv-tablewrap">
           <table className="inv-table">
             <thead>
-              <tr><th>Product</th><th>Category</th><th>Stock level</th><th>Qty</th><th>Price</th><th>Value</th><th>Status</th><th /></tr>
+              <tr>
+                <th>Product</th><th>Category</th><th>Stock level</th>
+                <th>Qty</th><th>Price</th><th>Value</th><th>Status</th><th />
+              </tr>
             </thead>
             <tbody>
               {filtered.map((p) => {
