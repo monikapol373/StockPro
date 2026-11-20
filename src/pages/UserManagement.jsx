@@ -158,11 +158,11 @@ const UserManagement = () => {
           </div>
           <div className="um-legend-item">
             <span className="um-role" style={{ background: "#f59e0b22", color: "#f59e0b" }}>Manager</span>
-            <p>Inventory, orders, suppliers, production, reports</p>
+            <p>Can manage inventory, orders, suppliers, production, reports</p>
           </div>
           <div className="um-legend-item">
             <span className="um-role" style={{ background: "#10b98122", color: "#10b981" }}>Staff</span>
-            <p>View only — inventory aani movements baghu shakte</p>
+            <p>Read-only access - can view inventory and stock movements only</p>
           </div>
         </div>
       </div>

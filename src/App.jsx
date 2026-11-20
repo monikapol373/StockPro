@@ -46,9 +46,9 @@ const App = () => {
           <Route path="/reality-check" element={<RealityCheck />} />
           <Route path="/bottleneck" element={<Bottleneck />} />
           <Route path="/assistant" element={<Assistant />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
           <Route path="/reorder" element={<SmartReorder />} />
-          <Route path="/users" element={<ProtectedRoute><UserManagement/></ProtectedRoute>}/>
+          <Route path="/users" element={<UserManagement />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
     </Routes>
