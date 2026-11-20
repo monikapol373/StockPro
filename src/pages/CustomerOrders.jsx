@@ -4,6 +4,7 @@ import CustomerOrdersContext from "../context/CustomerOrdersContext";
 import InventoryContext from "../context/InventoryContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useToast } from "../context/ToastContext";
+import InvoiceModal from "../components/InvoicePDF";
 
 const CustomerOrders = () => {
   const ctx = useContext(CustomerOrdersContext);
@@ -22,11 +23,11 @@ const CustomerOrders = () => {
   const [rowError, setRowError] = useState({});
   const [pending, setPending] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
 
   const finishedGoods = products.filter(
     (product) =>
-      String(product.category || "").trim().toLowerCase() ===
-      "finished goods"
+      String(product.category || "").trim().toLowerCase() === "finished goods"
   );
 
   const closeModal = () => {
@@ -39,36 +40,15 @@ const CustomerOrders = () => {
 
   const handleCreate = (event) => {
     event.preventDefault();
-
     const name = customerName.trim();
     const qty = Number(quantity);
-
-    if (!name) {
-      setFormError("Customer name is required.");
-      return;
-    }
-
-    if (!productId) {
-      setFormError("Select a product.");
-      return;
-    }
-
+    if (!name) { setFormError("Customer name is required."); return; }
+    if (!productId) { setFormError("Select a product."); return; }
     if (!Number.isInteger(qty) || qty < 1) {
-      setFormError("Quantity must be a whole number of at least 1.");
-      return;
+      setFormError("Quantity must be a whole number of at least 1."); return;
     }
-
-    const result = createCustomerOrder({
-      customerName: name,
-      productId,
-      quantity: qty,
-    });
-
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
-    }
-
+    const result = createCustomerOrder({ customerName: name, productId, quantity: qty });
+    if (!result.ok) { setFormError(result.error); return; }
     toast.success("Customer order created");
     closeModal();
   };
@@ -79,37 +59,25 @@ const CustomerOrders = () => {
       setPending(null);
       return;
     }
-
     const order = pending;
     const result = dispatchOrder(order.id);
-
-    setRowError((previous) => ({
-      ...previous,
-      [order.id]: result.ok ? null : result.error,
-    }));
-
+    setRowError((previous) => ({ ...previous, [order.id]: result.ok ? null : result.error }));
     if (result.ok) {
       toast.success(`${order.id} dispatched. Stock updated`);
     } else {
       toast.error(result.error);
     }
-
     setPending(null);
   };
 
   const planProduction = (order) => {
     navigate("/production", {
-      state: {
-        productId: order.productId,
-        targetQty: order.quantity,
-        customerOrderId: order.id,
-      },
+      state: { productId: order.productId, targetQty: order.quantity, customerOrderId: order.id },
     });
   };
 
   const pendingStock = pending
-    ? products.find((product) => product.id === pending.productId)
-        ?.quantity ?? 0
+    ? products.find((product) => product.id === pending.productId)?.quantity ?? 0
     : 0;
 
   const rows = customerOrders.map((order) => {
@@ -119,6 +87,7 @@ const CustomerOrders = () => {
     const needsProduction = order.status === "Pending" && availableStock < required;
     return {
       order,
+      product,
       availableStock,
       required,
       needsProduction,
@@ -126,21 +95,26 @@ const CustomerOrders = () => {
       done: order.status !== "Pending",
     };
   });
+
   const FILTERS = [
     ["all", "All orders"],
     ["ready", "Ready to dispatch"],
     ["production", "Needs production"],
     ["done", "Dispatched"],
   ];
+
   const countOf = (k) =>
-    rows.filter((r) => k === "all" || (k === "ready" && r.ready) || (k === "production" && r.needsProduction) || (k === "done" && r.done)).length;
+    rows.filter((r) =>
+      k === "all" || (k === "ready" && r.ready) ||
+      (k === "production" && r.needsProduction) || (k === "done" && r.done)
+    ).length;
+
   const visible = rows.filter(
     (r) =>
-      filter === "all" ||
-      (filter === "ready" && r.ready) ||
-      (filter === "production" && r.needsProduction) ||
-      (filter === "done" && r.done)
+      filter === "all" || (filter === "ready" && r.ready) ||
+      (filter === "production" && r.needsProduction) || (filter === "done" && r.done)
   );
+
   const stats = [
     { l: "Total Orders", v: rows.length, c: "#8b5cf6", s: "all time" },
     { l: "Ready to Dispatch", v: countOf("ready"), c: "#34d399", s: "stock available" },
@@ -225,6 +199,15 @@ const CustomerOrders = () => {
                     Dispatch
                   </button>
                 )}
+                {r.done && (
+                  <button
+                    type="button"
+                    className="pg-ghost sm"
+                    onClick={() => setInvoiceOrder({ order, product: r.product })}
+                  >
+                    🧾 Invoice
+                  </button>
+                )}
               </div>
               {rowError[order.id] && <p className="form-error co-err">{rowError[order.id]}</p>}
             </article>
@@ -241,6 +224,14 @@ const CustomerOrders = () => {
         onCancel={() => setPending(null)}
       />
 
+      {invoiceOrder && (
+        <InvoiceModal
+          order={invoiceOrder.order}
+          product={invoiceOrder.product}
+          onClose={() => setInvoiceOrder(null)}
+        />
+      )}
+
       {showModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -249,91 +240,39 @@ const CustomerOrders = () => {
                 <h2>New Customer Order</h2>
                 <p>Record an order to be fulfilled from stock.</p>
               </div>
-
-              <button
-                type="button"
-                className="close-btn"
-                onClick={closeModal}
-                aria-label="Close form"
-              >
-                ✕
-              </button>
+              <button type="button" className="close-btn" onClick={closeModal} aria-label="Close form">✕</button>
             </div>
-
             <form onSubmit={handleCreate}>
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label htmlFor="customer-name">Customer Name</label>
-
-                  <input
-                    id="customer-name"
-                    type="text"
-                    value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                    placeholder="Enter customer name"
-                    required
-                  />
+                  <input id="customer-name" type="text" value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Enter customer name" required />
                 </div>
-
                 <div className="form-group full-width">
                   <label htmlFor="customer-product">Product</label>
-
-                  <select
-                    id="customer-product"
-                    value={productId}
-                    onChange={(event) => setProductId(event.target.value)}
-                    required
-                  >
+                  <select id="customer-product" value={productId} onChange={(event) => setProductId(event.target.value)} required>
                     <option value="">Select a finished product</option>
-
                     {finishedGoods.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.name} ({product.quantity} in stock)
                       </option>
                     ))}
                   </select>
-
                   {finishedGoods.length === 0 && (
                     <small style={{ color: "#dc2626" }}>
-                      No Finished Goods found. Add a product with category
-                      "Finished Goods" in Inventory.
+                      No Finished Goods found. Add a product with category "Finished Goods" in Inventory.
                     </small>
                   )}
                 </div>
-
                 <div className="form-group">
                   <label htmlFor="customer-quantity">Quantity</label>
-
-                  <input
-                    id="customer-quantity"
-                    type="number"
-                    value={quantity}
-                    onChange={(event) => setQuantity(event.target.value)}
-                    min="1"
-                    step="1"
-                    required
-                  />
+                  <input id="customer-quantity" type="number" value={quantity} onChange={(event) => setQuantity(event.target.value)} min="1" step="1" required />
                 </div>
               </div>
-
-              {formError && (
-                <p className="form-error" role="alert">
-                  {formError}
-                </p>
-              )}
-
+              {formError && <p className="form-error" role="alert">{formError}</p>}
               <div className="modal-actions">
-                <button
-                  className="cancel-btn"
-                  type="button"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
-
-                <button type="submit" className="add-btn">
-                  Create Order
-                </button>
+                <button className="cancel-btn" type="button" onClick={closeModal}>Cancel</button>
+                <button type="submit" className="add-btn">Create Order</button>
               </div>
             </form>
           </div>
