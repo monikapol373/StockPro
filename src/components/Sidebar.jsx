@@ -5,54 +5,50 @@ import Icon from "./Icon";
 import Logo from "./Logo";
 import useAlertCount from "../hooks/useAlertCount";
 
-const GROUPS = [
-  {
-    title: "Overview",
-    items: [
-      { to: "/", label: "Dashboard", icon: "dashboard", end: true },
-      { to: "/alerts", label: "Alerts", icon: "alerts", badge: true },
-      { to: "/assistant", label: "Assistant", icon: "assistant" },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
-      { to: "/inventory", label: "Inventory", icon: "inventory" },
-      { to: "/reorder", label: "Smart Reorder", icon: "orders" },
-      { to: "/suppliers", label: "Suppliers", icon: "suppliers" },
-      { to: "/orders", label: "Purchase Orders", icon: "orders" },
-      { to: "/bom", label: "Bill of Materials", icon: "bom" },
-      { to: "/production", label: "Production", icon: "production" },
-      {
-        to: "/production-planner",
-        label: "Production Planner",
-        icon: "production",
-      },
-      { to: "/customer-orders", label: "Customer Orders", icon: "customer" },
-      { to: "/movements", label: "Movements", icon: "movements" },
-    ],
-  },
-  {
-    title: "Insights",
-    items: [
-      { to: "/reports", label: "Reports", icon: "reports" },
-      { to: "/bottleneck", label: "Bottleneck", icon: "bottleneck" },
-      { to: "/reality-check", label: "Reality Check", icon: "reality" },
-    ],
-  },
- {
-  title: "System",
-  items: [
-    { to: "/users", label: "User Management", icon: "settings" },
-    { to: "/settings", label: "Settings", icon: "settings" },
-  ],
-},
-];
-
 const Sidebar = ({ open, onNavigate }) => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, isAdmin } = useContext(AuthContext);
   const navigate = useNavigate();
   const alertCount = useAlertCount();
+
+  const GROUPS = [
+    {
+      title: "Overview",
+      items: [
+        { to: "/", label: "Dashboard", icon: "dashboard", end: true },
+        { to: "/alerts", label: "Alerts", icon: "alerts", badge: true },
+        { to: "/assistant", label: "Assistant", icon: "assistant" },
+      ],
+    },
+    {
+      title: "Operations",
+      items: [
+        { to: "/inventory", label: "Inventory", icon: "inventory" },
+        { to: "/reorder", label: "Smart Reorder", icon: "orders" },
+        { to: "/suppliers", label: "Suppliers", icon: "suppliers" },
+        { to: "/orders", label: "Purchase Orders", icon: "orders" },
+        { to: "/bom", label: "Bill of Materials", icon: "bom" },
+        { to: "/production", label: "Production", icon: "production" },
+        { to: "/production-planner", label: "Production Planner", icon: "production" },
+        { to: "/customer-orders", label: "Customer Orders", icon: "customer" },
+        { to: "/movements", label: "Movements", icon: "movements" },
+      ],
+    },
+    {
+      title: "Insights",
+      items: [
+        { to: "/reports", label: "Reports", icon: "reports" },
+        { to: "/bottleneck", label: "Bottleneck", icon: "bottleneck" },
+        { to: "/reality-check", label: "Reality Check", icon: "reality" },
+      ],
+    },
+    {
+      title: "System",
+      items: [
+        ...(isAdmin ? [{ to: "/users", label: "User Management", icon: "settings" }] : []),
+        { to: "/settings", label: "Settings", icon: "settings" },
+      ],
+    },
+  ];
 
   const handleLogout = () => {
     logout();
