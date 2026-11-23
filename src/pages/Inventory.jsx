@@ -9,6 +9,7 @@ import { getOrderStatus } from "../utils/orders";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useToast } from "../context/ToastContext";
 import ExcelImport from "../components/ExcelImport";
+import { useRoleGuard } from "../hooks/useRoleGuard";
 
 const CATEGORIES = [
   "Raw Material",
@@ -84,6 +85,7 @@ const Inventory = () => {
   const { orders = [] } = useContext(OrdersContext);
   const { productions = [] } = useContext(ProductionContext);
   const { customerOrders = [] } = useContext(CustomerOrdersContext);
+  const { canEdit } = useRoleGuard();
 
   const toast = useToast();
   const fileInputRef = useRef(null);
@@ -259,12 +261,13 @@ const Inventory = () => {
   };
 
   const openAddModal = () => {
-    setEditingProduct(null);
-    setFormData(emptyForm);
-    setFormError("");
-    setNotice("");
-    setShowModal(true);
-  };
+  if (!canEdit()) return;
+  setEditingProduct(null);
+  setFormData(emptyForm);
+  setFormError("");
+  setNotice("");
+  setShowModal(true);
+};
 
   const handleCloseModal = () => {
     setShowModal(false);
@@ -312,17 +315,19 @@ const Inventory = () => {
   };
 
   const handleEdit = (product) => {
-    setEditingProduct(product);
-    setFormData({
-      name: product.name, category: product.category, quantity: product.quantity,
-      unit: product.unit, price: product.price, minStock: product.minStock ?? "",
-    });
-    setFormError("");
-    setNotice("");
-    setShowModal(true);
-  };
+  if (!canEdit()) return;
+  setEditingProduct(product);
+  setFormData({
+    name: product.name, category: product.category, quantity: product.quantity,
+    unit: product.unit, price: product.price, minStock: product.minStock ?? "",
+  });
+  setFormError("");
+  setNotice("");
+  setShowModal(true);
+};
 
   const requestDelete = (product) => {
+    if (!canEdit()) return;
     const reasons = [];
     const usedInBoms = boms.filter(
       (bom) => bom.finishedProductId === product.id ||
@@ -383,11 +388,12 @@ const Inventory = () => {
     .sort((a, b) => a.currentQuantity - b.currentQuantity);
 
   const openStockModal = (product) => {
-    setStockProduct(product);
-    setStockForm(emptyStock);
-    setStockError("");
-    setNotice("");
-  };
+  if (!canEdit()) return;
+  setStockProduct(product);
+  setStockForm(emptyStock);
+  setStockError("");
+  setNotice("");
+};
 
   const closeStockModal = () => {
     setStockProduct(null);
