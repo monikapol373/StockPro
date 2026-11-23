@@ -19,6 +19,7 @@ import { BomProvider } from './context/BomContext.jsx'
 import { ProductionProvider } from './context/ProductionContext.jsx'
 import { CustomerOrdersProvider } from './context/CustomerOrdersContext.jsx'
 import { DecisionLogProvider } from './context/DecisionLogContext.jsx'
+import "./styles/mobile.css";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -1,0 +1,353 @@
+/* ============================================
+   StockPro — Mobile Responsive Fixes
+   Import this LAST in main.jsx
+   ============================================ */
+
+/* ===== Global ===== */
+@media (max-width: 768px) {
+  * { box-sizing: border-box; }
+
+  /* Page padding */
+  .shell .main-content {
+    padding: 0 12px 60px !important;
+  }
+
+  /* Page headers */
+  .pg-head, .inv-head {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 16px 0 !important;
+  }
+
+  .pg-head h1, .inv-head h1 {
+    font-size: 1.4rem !important;
+  }
+
+  .inv-head-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .inv-head-actions button {
+    flex: 1 1 calc(50% - 4px) !important;
+    font-size: 0.78rem !important;
+    padding: 0.5rem !important;
+    text-align: center !important;
+  }
+
+  /* Stats grid */
+  .pg-stats, .inv-stats, .co-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .inv-stat, .pg-stat {
+    padding: 12px !important;
+  }
+
+  .inv-stat strong, .pg-stat strong {
+    font-size: 1.3rem !important;
+  }
+
+  /* Filter chips */
+  .pg-chips, .inv-chips {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .pg-chips button, .inv-chips button {
+    font-size: 0.75rem !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+}
+
+/* ===== Inventory ===== */
+@media (max-width: 768px) {
+  /* Cards grid */
+  .inv-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Table scroll */
+  .inv-tablewrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .inv-table {
+    min-width: 600px !important;
+  }
+
+  /* Reorder rail */
+  .inv-rail {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .inv-rcard {
+    width: 100% !important;
+  }
+
+  /* Search bar */
+  .inv-tools {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .inv-search {
+    width: 100% !important;
+  }
+
+  .inv-toggle {
+    align-self: flex-end !important;
+  }
+}
+
+/* ===== Modals ===== */
+@media (max-width: 768px) {
+  .modal {
+    width: 95vw !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    margin: 0 auto !important;
+  }
+
+  .modal-overlay {
+    padding: 16px !important;
+    align-items: flex-end !important;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .form-group.full-width {
+    grid-column: 1 !important;
+  }
+
+  .modal-actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .modal-actions button {
+    width: 100% !important;
+  }
+}
+
+/* ===== Customer Orders ===== */
+@media (max-width: 768px) {
+  .co-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .co-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 14px !important;
+  }
+
+  .co-act {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .co-act button {
+    flex: 1 !important;
+  }
+
+  .co-cover {
+    width: 100% !important;
+  }
+}
+
+/* ===== Dashboard ===== */
+@media (max-width: 768px) {
+  .cc-kpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .cc-kpi {
+    padding: 12px !important;
+  }
+
+  .cc-kpi .cc-val {
+    font-size: 1.4rem !important;
+  }
+
+  .cc-charts {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cc-alerts {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ===== Suppliers / Orders ===== */
+@media (max-width: 768px) {
+  .sup-table-wrap,
+  .orders-tablewrap,
+  .mv-tablewrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sup-table,
+  .orders-table,
+  .mv-table {
+    min-width: 580px !important;
+  }
+
+  .sup-head,
+  .orders-head {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .sup-head-actions,
+  .orders-head-actions {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .sup-head-actions button,
+  .orders-head-actions button {
+    flex: 1 !important;
+  }
+}
+
+/* ===== Reports ===== */
+@media (max-width: 768px) {
+  .rp-kpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .rp-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .rp-actions {
+    flex-wrap: wrap !important;
+  }
+
+  .rp-actions button {
+    flex: 1 1 calc(50% - 4px) !important;
+  }
+}
+
+/* ===== User Management ===== */
+@media (max-width: 768px) {
+  .um-wrap {
+    padding: 1rem !important;
+  }
+
+  .um-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .um-table {
+    min-width: 500px !important;
+  }
+
+  .um-actions {
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+
+  .um-select, .um-btn {
+    width: 100% !important;
+  }
+
+  .um-legend-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ===== Invoice Modal ===== */
+@media (max-width: 768px) {
+  .inv-modal {
+    width: 95vw !important;
+    margin: 0 !important;
+  }
+
+  .inv-paper {
+    padding: 1rem !important;
+    margin: 0.75rem !important;
+  }
+
+  .inv-paper-header {
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  .inv-title-box h2 {
+    text-align: left !important;
+  }
+
+  .inv-items {
+    font-size: 0.75rem !important;
+  }
+
+  .inv-modal-header {
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: flex-start !important;
+  }
+
+  .inv-modal-actions {
+    width: 100% !important;
+  }
+
+  .inv-download-btn {
+    width: 100% !important;
+  }
+}
+
+/* ===== Excel Import Modal ===== */
+@media (max-width: 768px) {
+  .xi-modal {
+    width: 95vw !important;
+    max-height: 85vh !important;
+  }
+
+  .xi-actions {
+    flex-direction: column !important;
+  }
+
+  .xi-btn-back,
+  .xi-btn-import {
+    width: 100% !important;
+  }
+}
+
+/* ===== Bottom navigation hint ===== */
+@media (max-width: 768px) {
+  .sb {
+    padding-bottom: 20px !important;
+  }
+}
+
+/* ===== Typography ===== */
+@media (max-width: 480px) {
+  h1 { font-size: 1.3rem !important; }
+  h2 { font-size: 1.1rem !important; }
+
+  .pg-primary, .inv-primary {
+    font-size: 0.82rem !important;
+    padding: 0.5rem 0.9rem !important;
+  }
+}
