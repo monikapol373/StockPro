@@ -1,732 +1,984 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo";
-import CssWarehouse from "../components/CssWarehouse";
 
-const NAV = [
-  { id: "home", label: "Home" },
-  { id: "features", label: "Features" },
-  { id: "about", label: "About" },
-  { id: "contact", label: "Contact" },
-];
-
-const WORDS = ["Inventory.", "Production.", "Suppliers.", "Orders."];
-
-const MODULES = [
-  "Inventory", "Suppliers", "Purchase Orders", "Bill of Materials",
-  "Production", "Customer Orders", "Stock Movements", "Impact Alerts",
-  "Reality Check", "Bottleneck", "Reports", "Backup",
-];
-
-const ICONS = {
-  box: <path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8" />,
-  blocks: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM17 13v7M13 16.5h7" />,
-  alert: <path d="M12 3l10 18H2zM12 10v5M12 18v.5" />,
-  truck: <path d="M2 7h12v9H2zM14 10h4l4 4v2h-8M7 19a2 2 0 100-4 2 2 0 000 4zM18 19a2 2 0 100-4 2 2 0 000 4z" />,
-  check: <path d="M9 12l2 2 4-4M12 3a9 9 0 100 18 9 9 0 000-18z" />,
-  clock: <path d="M12 7v5l3 2M12 3a9 9 0 100 18 9 9 0 000-18z" />,
-};
+const WORDS = ["Inventory.", "Production.", "Suppliers.", "Orders.", "Growth."];
 
 const FEATURES = [
-  { icon: "box", title: "Live Inventory", text: "Track every product with stock in, out and adjust. Every change is written to a movement ledger." },
-  { icon: "blocks", title: "BOM and Production", text: "See how many units you can build right now and which material is holding you back." },
-  { icon: "alert", title: "Impact Chain Alerts", text: "Trace a material shortage to the production order and customer it puts at risk." },
-  { icon: "truck", title: "Supplier Risk Score", text: "Rate suppliers on late and fulfilled orders, using your own purchase order history." },
-  { icon: "check", title: "Reality Check", text: "Compare system stock with a physical count and apply the correction in one click." },
-  { icon: "clock", title: "Bottleneck Detection", text: "Find the slowest stage across procurement, production and dispatch." },
+  { icon: "📦", title: "Live Inventory", text: "Real-time stock tracking with every movement recorded.", color: "#00c8ff" },
+  { icon: "🏭", title: "BOM & Production", text: "Build smarter with complete production visibility.", color: "#a78bfa" },
+  { icon: "⚡", title: "Impact Alerts", text: "Find shortages before they affect customer orders.", color: "#ff9d42" },
+  { icon: "🚚", title: "Supplier Risk", text: "Track supplier performance and delivery reliability.", color: "#00e5a0" },
+  { icon: "📊", title: "Smart Reports", text: "PDF, Excel, GST invoices and business analytics.", color: "#ed70e8" },
+  { icon: "🔍", title: "Bottleneck Detection", text: "Identify operational bottlenecks instantly.", color: "#818cf8" }
 ];
 
 const STEPS = [
-  { n: "01", title: "Set up your stock", text: "Add products, suppliers and the Bill of Materials for what you build." },
-  { n: "02", title: "Run your operations", text: "Place purchase orders, run production, dispatch customer orders. Stock updates itself." },
-  { n: "03", title: "Act before it breaks", text: "Alerts, risk scores and bottleneck insights tell you what to fix first." },
+  { n: "01", icon: "🗂️", title: "Set up your stock", text: "Add products, suppliers and bills of materials." },
+  { n: "02", icon: "⚙️", title: "Run operations", text: "Manage orders, production and dispatch." },
+  { n: "03", icon: "🎯", title: "Act on insights", text: "Use alerts and analytics to make smarter decisions." }
 ];
 
-const ABOUT_POINTS = [
-  "One connected flow from supplier to customer",
-  "Explainable alerts, no black box",
-  "Backup, restore and CSV export built in",
-  "Works right in your browser, no setup",
-];
+const CUBE = ({ color = "#00c8ff", size = 48, delay = "0s" }) => (
+  <div className="sp-cube-float" style={{ width: size, height: size, animationDelay: delay }}>
+    <div className="sp-cube" style={{ "--cube-color": color }}>
+      <i className="front" />
+      <i className="back" />
+      <i className="right" />
+      <i className="left" />
+      <i className="top" />
+      <i className="bottom" />
+    </div>
+  </div>
+);
 
-const PARTICLES = Array.from({ length: 30 }, (_, i) => ({
-  left: (i * 37) % 100,
-  top: (i * 53) % 100,
-  size: 2 + (i % 3),
-  delay: (i * 0.7) % 7,
-  dur: 6 + (i % 5) * 2,
-}));
-
-/* ---------------- hooks ---------------- */
-const useTypewriter = (words) => {
-  const [text, setText] = useState("");
-  const [idx, setIdx] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    const full = words[idx];
-    let delay = deleting ? 45 : 95;
-    if (!deleting && text === full) delay = 1500;
-    if (deleting && text === "") delay = 350;
-
-    const t = setTimeout(() => {
-      if (!deleting && text === full) setDeleting(true);
-      else if (deleting && text === "") {
-        setDeleting(false);
-        setIdx((idx + 1) % words.length);
-      } else {
-        setText(deleting ? full.slice(0, text.length - 1) : full.slice(0, text.length + 1));
-      }
-    }, delay);
-    return () => clearTimeout(t);
-  }, [text, deleting, idx, words]);
-
-  return text;
-};
-
-const useReveal = () => {
-  useEffect(() => {
-    const els = document.querySelectorAll(".ld-reveal");
-    const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("ld-in");
-            io.unobserve(e.target);
-          }
-        }),
-      { threshold: 0.15 }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-};
-
-const useActiveSection = () => {
-  const [active, setActive] = useState("home");
-  useEffect(() => {
-    const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) setActive(e.target.id);
-        }),
-      { rootMargin: "-45% 0px -50% 0px" }
-    );
-    NAV.forEach((n) => {
-      const el = document.getElementById(n.id);
-      if (el) io.observe(el);
-    });
-    return () => io.disconnect();
-  }, []);
-  return active;
-};
-
-const Counter = ({ to, suffix = "" }) => {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    const start = performance.now();
-    let raf;
-    const tick = (now) => {
-      const p = Math.min((now - start) / 1600, 1);
-      setVal(Math.round(to * p));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [to]);
-  return <span>{val}{suffix}</span>;
-};
-
-/* ---------------- component ---------------- */
 const Landing = () => {
-  const active = useActiveSection();
-  const typed = useTypewriter(WORDS);
+  const [typed, setTyped] = useState("");
+  const [wordIndex, setWordIndex] = useState(0);
+  const [deleting, setDeleting] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const [contact, setContact] = useState({ name: "", email: "", message: "" });
   const [sent, setSent] = useState(false);
-  const [contactError, setContactError] = useState("");
+  const [activeFeature, setActiveFeature] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [aiActive, setAiActive] = useState(false);
+  const dashboardRef = useRef(null);
 
-  useReveal();
-
+  // Typewriter
   useEffect(() => {
-    const onScroll = () => {
-      const h = document.documentElement.scrollHeight - window.innerHeight;
-      setScrolled(window.scrollY > 20);
-      setProgress(h > 0 ? (window.scrollY / h) * 100 : 0);
+    const word = WORDS[wordIndex];
+    const delay = deleting ? 45 : typed === word ? 1600 : 95;
+
+    const timer = setTimeout(() => {
+      if (!deleting && typed === word) {
+        setDeleting(true);
+      } else if (deleting && typed === "") {
+        setDeleting(false);
+        setWordIndex((i) => (i + 1) % WORDS.length);
+      } else {
+        setTyped(deleting ? word.slice(0, typed.length - 1) : word.slice(0, typed.length + 1));
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [typed, deleting, wordIndex]);
+
+  // Scroll progress
+  useEffect(() => {
+    const handleScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(max > 0 ? (window.scrollY / max) * 100 : 0);
+      setScrolled(window.scrollY > 40);
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Mouse parallax
+  useEffect(() => {
+    const handleMouse = (e) => {
+      setMouse({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2
+      });
+    };
+
+    window.addEventListener("mousemove", handleMouse);
+    return () => window.removeEventListener("mousemove", handleMouse);
+  }, []);
+
+  // Scroll reveal
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("sp-visible");
+          }
+        });
+      },
+      { threshold: 0.12 }
+    );
+
+    document.querySelectorAll(".sp-reveal").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
   }, []);
 
   const go = (id) => (e) => {
     e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const parallax = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty("--px", ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
-    e.currentTarget.style.setProperty("--py", ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
-  };
-
-  const tilt = (e) => {
-    const el = e.currentTarget;
-    const r = el.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width;
-    const y = (e.clientY - r.top) / r.height;
-    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-    el.style.setProperty("--my", `${e.clientY - r.top}px`);
-    el.style.setProperty("--rx", `${((0.5 - y) * 12).toFixed(2)}deg`);
-    el.style.setProperty("--ry", `${((x - 0.5) * 14).toFixed(2)}deg`);
-  };
-
-  const untilt = (e) => {
-    e.currentTarget.style.setProperty("--rx", "0deg");
-    e.currentTarget.style.setProperty("--ry", "0deg");
-  };
-
-  const onContactChange = (e) => setContact({ ...contact, [e.target.name]: e.target.value });
-
-  const onContactSubmit = (e) => {
+  const submitContact = (e) => {
     e.preventDefault();
-    setContactError("");
-    if (contact.name.trim().length < 2) return setContactError("Please enter your name.");
-    if (!/^\S+@\S+\.\S+$/.test(contact.email.trim())) return setContactError("Please enter a valid email.");
-    if (contact.message.trim().length < 5) return setContactError("Message is too short.");
     try {
-      const old = JSON.parse(localStorage.getItem("sp_contact_messages") || "[]");
+      const old = JSON.parse(localStorage.getItem("sp_contacts") || "[]");
       localStorage.setItem(
-        "sp_contact_messages",
+        "sp_contacts",
         JSON.stringify([...old, { ...contact, date: new Date().toISOString() }])
       );
-    } catch {
-      /* ignore storage errors */
+      setSent(true);
+      setContact({ name: "", email: "", message: "" });
+    } catch (error) {
+      console.error("Contact storage error:", error);
     }
-    setSent(true);
-    setContact({ name: "", email: "", message: "" });
+  };
+
+  const tilt = {
+    transform: `perspective(1200px) rotateY(${mouse.x * 5}deg) rotateX(${-mouse.y * 4}deg)`
   };
 
   return (
-    <div className="ld">
+    <div className="stockpro">
       <style>{CSS}</style>
-      <div className="ld-progress" style={{ width: `${progress}%` }} />
 
-      {/* ===== NAVBAR ===== */}
-      <header className={`ld-nav ${scrolled ? "ld-nav-solid" : ""}`}>
-        <a href="#home" onClick={go("home")} className="ld-brand"><Logo size={28} /></a>
+      <div className="sp-progress" style={{ width: `${progress}%` }} />
 
-        <nav className="ld-links">
-          {NAV.map((n) => (
-            <a key={n.id} href={`#${n.id}`} onClick={go(n.id)} className={active === n.id ? "ld-active" : ""}>
-              {n.label}
+      {/* NAVIGATION */}
+      <nav className={`sp-nav ${scrolled ? "sp-nav-solid" : ""}`}>
+        <Link to="/" className="sp-logo"><Logo size={32} /></Link>
+
+        <div className={`sp-nav-links ${menuOpen ? "sp-menu-open" : ""}`}>
+          {["features", "how-it-works", "about", "contact"].map((id) => (
+            <a key={id} href={`#${id}`} onClick={go(id)}>
+              {id.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
             </a>
           ))}
-        </nav>
-
-        <div className="ld-actions">
-          <Link to="/login" className="ld-btn ld-btn-ghost">Login</Link>
-          <Link to="/register" className="ld-btn ld-btn-primary">Register</Link>
         </div>
-      </header>
 
-      {/* ===== HERO ===== */}
-      <section id="home" className="ld-hero" onMouseMove={parallax}>
-        <div className="ld-hero-bg" />
-        <div className="ld-hero-shade" />
-        <div className="ld-orb ld-orb1" />
-        <div className="ld-orb ld-orb2" />
-        <div className="ld-particles">
-          {PARTICLES.map((p, i) => (
-            <i key={i} style={{ left: `${p.left}%`, top: `${p.top}%`, width: p.size, height: p.size, animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s` }} />
+        <div className="sp-nav-actions">
+          <Link to="/login" className="sp-login">Login</Link>
+          <Link to="/register" className="sp-button sp-small-btn">Get Started ↗</Link>
+        </div>
+
+        <button className="sp-menu-btn" onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? "✕" : "☰"}
+        </button>
+      </nav>
+
+      {/* HERO */}
+      <section id="home" className="sp-hero">
+        <div className="sp-grid-bg" />
+        <div className="sp-glow sp-glow-one" />
+        <div className="sp-glow sp-glow-two" />
+
+        <div className="sp-stars">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <span key={i} style={{
+              left: `${(i * 37) % 100}%`,
+              top: `${(i * 61) % 100}%`,
+              animationDelay: `${(i % 7) * 0.4}s`
+            }} />
           ))}
         </div>
 
-        <div className="ld-hero-grid">
-          <div className="ld-hero-inner">
-            <span className="ld-pill"><i /> Inventory and manufacturing control</span>
-            <h1>
-              Smarter <span className="ld-type">{typed}<em /></span>
+        <div className="sp-hero-inner">
+          <div className="sp-hero-copy">
+            <div className="sp-eyebrow sp-reveal">
+              <span className="sp-live-dot" />
+              NEXT-GEN INVENTORY INTELLIGENCE
+            </div>
+
+            <h1 className="sp-hero-title sp-reveal">
+              Stock<span>Pro</span>
               <br />
-              Stronger <span className="ld-grad">Production.</span>
+              Control Your
+              <br />
+              <span className="sp-gradient-text">{typed}<b className="sp-cursor">|</b></span>
             </h1>
-            <p>
-              StockPro connects your raw materials, suppliers, production and customer orders in one
-              platform, so you see a shortage before it becomes a late delivery.
+
+            <p className="sp-hero-desc sp-reveal">
+              Connect raw materials, suppliers, production and customer
+              orders in one intelligent platform. See every problem
+              before it becomes a crisis.
             </p>
-            <div className="ld-hero-cta">
-              <Link to="/register" className="ld-btn ld-btn-primary ld-lg ld-shine">Get Started Free</Link>
-              <a href="#features" onClick={go("features")} className="ld-btn ld-btn-ghost ld-lg">Explore Features</a>
+
+            <div className="sp-hero-buttons sp-reveal">
+              <Link to="/register" className="sp-button sp-big-btn">
+                Explore Platform <span>→</span>
+              </Link>
+              <a href="#features" onClick={go("features")} className="sp-watch">
+                <span>▶</span> Explore Features
+              </a>
             </div>
 
-            <div className="ld-stats">
-              <div><strong><Counter to={13} />+</strong><span>Connected modules</span></div>
-              <div><strong><Counter to={6} /></strong><span>Smart insights</span></div>
-              <div><strong><Counter to={100} suffix="%" /></strong><span>Movements traced</span></div>
+            <div className="sp-hero-stats sp-reveal">
+              <div><strong>13+</strong><small>Modules</small></div>
+              <div><strong>100%</strong><small>Traceability</small></div>
+              <div><strong>Live</strong><small>Stock Updates</small></div>
             </div>
           </div>
 
-          <div className="ld-float-wrap">
-            <div className="ld-3d">
-              <CssWarehouse />
-            </div>
-            <div className="ld-float ld-f1">
-              <span className="ld-dot-r" />
-              <div><b>Low stock alert</b><small>Steel Sheets below limit</small></div>
-            </div>
-            <div className="ld-float ld-f2">
-              <div className="ld-ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" /><circle cx="18" cy="18" r="15" className="fg" /></svg><b>68%</b></div>
-              <div><b>Production</b><small>Overall progress</small></div>
-            </div>
-            <div className="ld-float ld-f3">
-              <span className="ld-dot-g" />
-              <div><b>Order dispatched</b><small>CO-2001 shipped</small></div>
-            </div>
-          </div>
-        </div>
+          {/* 3D DASHBOARD */}
+          <div className="sp-hero-visual sp-reveal" ref={dashboardRef}>
+            <div className="sp-orbit orbit-one" />
+            <div className="sp-orbit orbit-two" />
 
-        <a href="#features" onClick={go("features")} className="ld-scroll"><span /></a>
-      </section>
+            <div className="sp-dashboard" style={tilt}>
+              <div className="sp-dash-top">
+                <div className="sp-dash-brand">
+                  <span className="sp-live-dot" /> LIVE OVERVIEW
+                </div>
+                <span className="sp-dash-date">Real-time Analytics ↗</span>
+              </div>
 
-      {/* ===== MARQUEE ===== */}
-      <div className="ld-marquee">
-        <div className="ld-track">
-          {[...MODULES, ...MODULES].map((m, i) => <span key={i}>{m}</span>)}
-        </div>
-      </div>
+              <div className="sp-dash-kpis">
+                <div><small>Total Stock</small><strong>24,850</strong><em>↑ 12.5%</em></div>
+                <div><small>Orders Today</small><strong>3,240</strong><em>↑ 18%</em></div>
+                <div><small>Production</small><strong>92%</strong><em>↑ 5%</em></div>
+              </div>
 
-      {/* ===== FEATURES ===== */}
-      <section id="features" className="ld-section">
-        <div className="ld-head ld-reveal">
-          <span className="ld-tag">Features</span>
-          <h2>Everything your plant needs, in one place</h2>
-          <p>Built around the real flow of a small factory, from the supplier's truck to the customer's door.</p>
-        </div>
-        <div className="ld-grid">
-          {FEATURES.map((f, i) => (
-            <div key={f.title} className="ld-reveal" style={{ transitionDelay: `${i * 80}ms` }}>
-              <div className="ld-card" onMouseMove={tilt} onMouseLeave={untilt}>
-                <span className="ld-icon">
-                  <svg viewBox="0 0 24 24">{ICONS[f.icon]}</svg>
-                </span>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
+              <div className="sp-chart-area">
+                <div className="sp-chart-heading">
+                  <strong>Business Performance</strong>
+                  <span>Last 7 days</span>
+                </div>
+                <svg viewBox="0 0 500 170" className="sp-chart-svg">
+                  <defs>
+                    <linearGradient id="spLine" x1="0" x2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#00d9ff" />
+                    </linearGradient>
+                    <linearGradient id="spArea" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#00c8ff" stopOpacity=".3" />
+                      <stop offset="100%" stopColor="#00c8ff" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {[35, 75, 115, 155].map(y => (
+                    <line key={y} x1="0" x2="500" y1={y} y2={y} stroke="#294064" strokeDasharray="4 6" />
+                  ))}
+                  <path className="sp-chart-area-fill"
+                    d="M0 130 L65 95 L130 112 L195 65 L260 82 L325 45 L390 60 L455 15 L500 25 L500 170 L0 170Z"
+                    fill="url(#spArea)" />
+                  <path className="sp-chart-line"
+                    d="M0 130 L65 95 L130 112 L195 65 L260 82 L325 45 L390 60 L455 15 L500 25"
+                    fill="none" stroke="url(#spLine)" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+              </div>
+
+              <div className="sp-dash-bottom">
+                <div className="sp-mini-bars">
+                  {[45, 75, 55, 90, 65, 100, 80, 115].map((h, i) => (
+                    <span key={i} style={{ height: h, animationDelay: `${i * .12}s` }} />
+                  ))}
+                </div>
+                <div className="sp-production-ring">
+                  <div><strong>92%</strong><small>Production</small></div>
+                </div>
               </div>
             </div>
+
+            <div className="sp-floating-alert alert-left">
+              <span>⚠️</span>
+              <div><strong>Low Stock Alert</strong><small>12 units remaining</small></div>
+            </div>
+
+            <div className="sp-floating-alert alert-right">
+              <span>✓</span>
+              <div><strong>Order Dispatched</strong><small>Delivery successful</small></div>
+            </div>
+
+            <div className="sp-cube-cluster">
+              <CUBE color="#00c8ff" size={43} />
+              <CUBE color="#8b5cf6" size={43} delay=".5s" />
+              <CUBE color="#00c8ff" size={43} delay="1s" />
+            </div>
+          </div>
+        </div>
+
+        <a href="#inventory" onClick={go("inventory")} className="sp-scroll">
+          <span>↓</span> SCROLL TO EXPLORE
+        </a>
+      </section>
+
+      {/* INVENTORY 3D */}
+      <section id="inventory" className="sp-scene sp-inventory">
+        <div className="sp-section-inner sp-inventory-layout">
+          <div className="sp-scene-copy sp-reveal">
+            <span className="sp-section-number">01 / 05 — INVENTORY</span>
+            <h2>Inventory<br /><span className="sp-gradient-text">Intelligence.</span></h2>
+            <p>Track. Manage. Optimize.</p>
+            <small>Interactive stock visualization. Every cube represents a product, every movement updates your inventory.</small>
+            <Link to="/register" className="sp-outline-btn">Explore Inventory →</Link>
+          </div>
+
+          <div className="sp-inventory-world sp-reveal">
+            <div className="sp-platform" />
+            <div className="sp-cube-grid">
+              {[
+                ["#00c8ff", 0], ["#8b5cf6", 1], ["#00c8ff", 2],
+                ["#8b5cf6", 3], ["#00c8ff", 4], ["#00e5a0", 5],
+                ["#8b5cf6", 6], ["#00c8ff", 7], ["#00c8ff", 8]
+              ].map(([color, i]) => (
+                <CUBE key={i} color={color} size={55} delay={`${i * .15}s`} />
+              ))}
+            </div>
+            <div className="sp-stock-tooltip">
+              <span>💻</span>
+              <div><strong>Laptop Pro 16"</strong><small>Stock: 120 units</small><em>● Healthy</em></div>
+            </div>
+            <div className="sp-low-stock">
+              <span>⚠</span>
+              <div><strong>Smartphone X1</strong><small>Stock: 5 units</small><em>Low Stock</em></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRODUCTION */}
+      <section className="sp-scene sp-production">
+        <div className="sp-section-inner sp-production-layout">
+          <div className="sp-production-visual sp-reveal">
+            <div className="sp-production-ring"><div><strong>92%</strong><small>Production</small></div></div>
+            <div className="sp-factory">
+              <div className="sp-factory-building">
+                <div className="sp-factory-window" />
+                <div className="sp-factory-door" />
+                <div className="sp-smoke smoke-one" />
+                <div className="sp-smoke smoke-two" />
+              </div>
+              <div className="sp-conveyor">
+                <div className="sp-belt">
+                  {Array.from({ length: 7 }).map((_, i) => <span key={i} />)}
+                </div>
+                <div className="sp-moving-products">
+                  <CUBE color="#ff9d42" size={28} />
+                  <CUBE color="#00c8ff" size={28} delay=".7s" />
+                  <CUBE color="#8b5cf6" size={28} delay="1.4s" />
+                </div>
+              </div>
+              <div className="sp-robot-arm">⚙</div>
+            </div>
+          </div>
+
+          <div className="sp-scene-copy sp-reveal">
+            <span className="sp-section-number">02 / 05 — PRODUCTION</span>
+            <h2>Production<br /><span className="sp-gradient-text">Automation.</span></h2>
+            <p>Automate. Accelerate. Scale.</p>
+            <small>Watch your production pipeline with real-time progress tracking and smart manufacturing insights.</small>
+            <Link to="/register" className="sp-outline-btn">Explore Production →</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* SUPPLY CHAIN */}
+      <section className="sp-scene sp-supply">
+        <div className="sp-section-inner">
+          <div className="sp-section-heading sp-reveal">
+            <span className="sp-section-number">03 / 05 — SUPPLY CHAIN</span>
+            <h2>One connected <span className="sp-gradient-text">ecosystem.</span></h2>
+            <p>Connect. Collaborate. Deliver.</p>
+          </div>
+
+          <div className="sp-supply-flow sp-reveal">
+            <div className="sp-flow-line"><i /></div>
+            {[
+              ["🏭", "Suppliers", "Procurement"],
+              ["📦", "Inventory", "Stock Management"],
+              ["⚙️", "Production", "Manufacturing"],
+              ["🚚", "Orders", "Delivery"]
+            ].map(([icon, title, sub], i) => (
+              <div className="sp-flow-node" key={title} style={{ animationDelay: `${i * .4}s` }}>
+                <div className="sp-flow-icon">{icon}</div>
+                <strong>{title}</strong>
+                <small>{sub}</small>
+                <span className="sp-flow-check">✓</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AI ASSISTANT */}
+      <section className="sp-scene sp-ai">
+        <div className="sp-section-inner sp-ai-layout">
+          <div className="sp-scene-copy sp-reveal">
+            <span className="sp-section-number">04 / 05 — AI ASSISTANT</span>
+            <h2>Meet your<br /><span className="sp-gradient-text">AI Assistant.</span></h2>
+            <p>Ask. Analyze. Act.</p>
+            <small>Get intelligent insights, demand forecasts and operational recommendations.</small>
+            <button className="sp-outline-btn" onClick={() => setAiActive(!aiActive)}>
+              {aiActive ? "Deactivate AI" : "Activate AI"} →
+            </button>
+          </div>
+
+          <div className="sp-ai-world sp-reveal">
+            <div className={`sp-ai-orb ${aiActive ? "sp-ai-active" : ""}`}>
+              <div className="sp-ai-ring ring-a" />
+              <div className="sp-ai-ring ring-b" />
+              <div className="sp-ai-ring ring-c" />
+              <div className="sp-ai-core">
+                <span>✧</span>
+                <strong>StockPro</strong>
+                <small>AI CORE</small>
+              </div>
+            </div>
+
+            <div className="sp-ai-card ai-card-one">
+              <span>◈</span><strong>Stock Forecast</strong>
+              <small>+18% expected demand</small>
+            </div>
+            <div className="sp-ai-card ai-card-two">
+              <span>⚡</span><strong>Low Stock Alert</strong>
+              <small>2 items need reorder</small>
+            </div>
+            <div className="sp-ai-card ai-card-three">
+              <span>✦</span><strong>Smart Insights</strong>
+              <small>Optimize your operations</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" className="sp-content-section">
+        <div className="sp-section-heading sp-reveal">
+          <span className="sp-section-number">05 / 05 — PLATFORM FEATURES</span>
+          <h2>Everything your business <span className="sp-gradient-text">needs.</span></h2>
+          <p>Powerful tools designed for modern manufacturing workflows.</p>
+        </div>
+
+        <div className="sp-features-grid">
+          {FEATURES.map((f, i) => (
+            <div
+              key={f.title}
+              className={`sp-feature-card sp-reveal ${activeFeature === i ? "sp-feature-active" : ""}`}
+              style={{ "--feature-color": f.color, transitionDelay: `${i * .08}s` }}
+              onMouseEnter={() => setActiveFeature(i)}
+              onMouseLeave={() => setActiveFeature(null)}
+            >
+              <div className="sp-feature-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.text}</p>
+              <span className="sp-feature-arrow">↗</span>
+            </div>
           ))}
         </div>
       </section>
 
-      {/* ===== STEPS ===== */}
-      <section className="ld-section ld-alt">
-        <div className="ld-head ld-reveal">
-          <span className="ld-tag">How it works</span>
-          <h2>From setup to insight in three steps</h2>
+      {/* HOW IT WORKS */}
+      <section id="how-it-works" className="sp-content-section sp-dark-section">
+        <div className="sp-section-heading sp-reveal">
+          <span className="sp-section-number">HOW IT WORKS</span>
+          <h2>Three steps. <span className="sp-gradient-text">Total control.</span></h2>
         </div>
-        <div className="ld-steps ld-reveal">
-          {STEPS.map((s) => (
-            <div key={s.n} className="ld-step">
-              <span className="ld-step-n">{s.n}</span>
+        <div className="sp-steps-grid">
+          {STEPS.map((s, i) => (
+            <div className="sp-step-card sp-reveal" key={s.n}>
+              <div className="sp-step-icon">{s.icon}</div>
+              <span>{s.n}</span>
               <h3>{s.title}</h3>
               <p>{s.text}</p>
+              {i !== 2 && <div className="sp-step-arrow">→</div>}
             </div>
           ))}
         </div>
       </section>
 
-      {/* ===== PREVIEW ===== */}
-      <section className="ld-section">
-        <div className="ld-head ld-reveal">
-          <span className="ld-tag">Preview</span>
-          <h2>A command center for your plant</h2>
-          <p>Sample view of the StockPro dashboard.</p>
-        </div>
-        <div className="ld-mock-stage">
-          <div className="ld-mock-3d">
-            <div className="ld-pop ld-pop1"><small>Production</small><b>68%</b></div>
-            <div className="ld-pop ld-pop2"><i /><span>Steel Sheets below limit</span></div>
-            <div className="ld-mock ld-reveal">
-              <div className="ld-mock-bar"><i /><i /><i /><span>stockpro / dashboard</span></div>
-              <div className="ld-mock-body">
-                <div className="ld-mock-side">
-                  <b>StockPro</b>
-                  <span className="on">Dashboard</span>
-                  <span>Inventory</span>
-                  <span>Production</span>
-                  <span>Alerts</span>
-                  <span>Reports</span>
-                </div>
-                <div className="ld-mock-main">
-                  <div className="ld-mock-cards">
-                    <div><small>Stock Value</small><strong>₹ 12.4L</strong></div>
-                    <div><small>Open Orders</small><strong>48</strong></div>
-                    <div><small>In Production</small><strong>12</strong></div>
-                    <div className="warn"><small>Low Stock</small><strong>7</strong></div>
-                  </div>
-                  <div className="ld-mock-row">
-                    <div className="ld-mock-chart">
-                      <small>Production vs Demand</small>
-                      <div className="bars">
-                        {[40, 62, 48, 75, 58, 82, 66].map((h, i) => (
-                          <span key={i} style={{ height: `${h}%`, transitionDelay: `${i * 90}ms` }} />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="ld-mock-alerts">
-                      <small>Critical Alerts</small>
-                      <p><i className="r" /> Steel Sheets shortage</p>
-                      <p><i className="a" /> PO-1002 delayed</p>
-                      <p><i className="g" /> Stock adjusted</p>
-                    </div>
-                  </div>
-                </div>
+      {/* ABOUT */}
+      <section id="about" className="sp-content-section">
+        <div className="sp-about-layout">
+          <div className="sp-reveal">
+            <span className="sp-section-number">ABOUT STOCKPRO</span>
+            <h2>Built to remove the <span className="sp-gradient-text">guesswork.</span></h2>
+            <p className="sp-about-desc">
+              Small factories often discover shortages when customer orders
+              are already late. StockPro connects every part of your operation
+              so you stay one step ahead.
+            </p>
+            {[
+              "One connected flow from supplier to customer",
+              "Explainable alerts — no black box",
+              "PDF, Excel & GST reports built in",
+              "Multi-user roles — Admin, Manager, Staff",
+              "Real-time sync across devices"
+            ].map(p => <div className="sp-about-point" key={p}>✓ <span>{p}</span></div>)}
+          </div>
+
+          <div className="sp-about-visual sp-reveal">
+            <div className="sp-about-glass">
+              <div className="sp-about-orb">✧</div>
+              <h3>One platform.</h3>
+              <h3 className="sp-gradient-text">Infinite control.</h3>
+              <div className="sp-tech-tags">
+                {["React", "Node.js", "MongoDB", "JWT Auth", "Railway", "Vercel"].map(t => <span key={t}>{t}</span>)}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== ABOUT ===== */}
-      <section id="about" className="ld-section ld-alt">
-        <div className="ld-about">
-          <div className="ld-reveal">
-            <span className="ld-tag">About</span>
-            <h2>Built to remove the guesswork from manufacturing</h2>
-            <p>
-              Small factories often find out about a shortage when a customer order is already late.
-              StockPro links materials, suppliers, production and orders, so the whole chain is visible
-              early and every decision is backed by your own data.
-            </p>
-            <ul>
-              {ABOUT_POINTS.map((p) => (
-                <li key={p}><span>✓</span>{p}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="ld-about-card ld-reveal">
-            <h3>The problem we solve</h3>
-            <p>Disconnected data, late shortage discovery and no clear root cause.</p>
-            <h3>How StockPro helps</h3>
-            <p>One connected flow, early warnings through Impact Chain, and clear reasons behind every alert.</p>
-          </div>
+      {/* CONTACT */}
+      <section id="contact" className="sp-content-section sp-dark-section">
+        <div className="sp-section-heading sp-reveal">
+          <span className="sp-section-number">CONTACT</span>
+          <h2>Let's build something <span className="sp-gradient-text">great.</span></h2>
+          <p>Have a question or want to collaborate? We'd love to hear from you.</p>
         </div>
-      </section>
 
-      {/* ===== CONTACT ===== */}
-      <section id="contact" className="ld-section">
-        <div className="ld-head ld-reveal">
-          <span className="ld-tag">Contact</span>
-          <h2>Get in touch</h2>
-          <p>Have a question or feedback? Send a message.</p>
-        </div>
-        <div className="ld-contact ld-reveal">
-          <div className="ld-contact-info">
-            <div><span>📧</span><div><b>Email</b><p>monika@gmail.com</p></div></div>
-            <div><span>📍</span><div><b>Location</b><p>Pune, Maharashtra, India</p></div></div>
-            <div><span>🕘</span><div><b>Working hours</b><p>Mon to Sat, 9 AM to 6 PM</p></div></div>
+        <div className="sp-contact-layout">
+          <div className="sp-contact-info sp-reveal">
+            {[
+              ["✉", "Email", "monika@gmail.com"],
+              ["⌖", "Location", "Pune, Maharashtra, India"],
+              ["◷", "Hours", "Mon–Sat, 9 AM to 6 PM"]
+            ].map(([icon, title, value]) => (
+              <div className="sp-contact-item" key={title}>
+                <span>{icon}</span>
+                <div><strong>{title}</strong><small>{value}</small></div>
+              </div>
+            ))}
           </div>
 
-          <form className="ld-form" onSubmit={onContactSubmit}>
+          <form className="sp-contact-form sp-reveal" onSubmit={submitContact}>
             {sent ? (
-              <div className="ld-sent">
-                <h3>Message sent</h3>
-                <p>Thank you for reaching out. We will get back to you soon.</p>
-                <button type="button" className="ld-btn ld-btn-ghost" onClick={() => setSent(false)}>Send another</button>
+              <div className="sp-success">
+                <span>✓</span>
+                <h3>Message saved!</h3>
+                <p>Your message has been saved in this browser.</p>
+                <button type="button" className="sp-outline-btn" onClick={() => setSent(false)}>Send another</button>
               </div>
             ) : (
               <>
-                <input name="name" value={contact.name} onChange={onContactChange} placeholder="Your name" />
-                <input name="email" value={contact.email} onChange={onContactChange} placeholder="Your email" />
-                <textarea name="message" rows="4" value={contact.message} onChange={onContactChange} placeholder="Your message" />
-                {contactError && <p className="ld-form-error">{contactError}</p>}
-                <button type="submit" className="ld-btn ld-btn-primary ld-lg ld-shine">Send Message</button>
+                <input placeholder="Your name" required value={contact.name}
+                  onChange={e => setContact({ ...contact, name: e.target.value })} />
+                <input type="email" placeholder="Your email" required value={contact.email}
+                  onChange={e => setContact({ ...contact, email: e.target.value })} />
+                <textarea placeholder="Your message" required value={contact.message}
+                  onChange={e => setContact({ ...contact, message: e.target.value })} />
+                <button className="sp-button sp-big-btn" type="submit">Send Message →</button>
               </>
             )}
           </form>
         </div>
       </section>
 
-      {/* ===== CTA ===== */}
-      <section className="ld-cta ld-reveal">
-        <h2>Ready to take control of your stock?</h2>
-        <p>Create your account and see your whole plant in one place.</p>
-        <div className="ld-hero-cta" style={{ justifyContent: "center" }}>
-          <Link to="/register" className="ld-btn ld-btn-light ld-lg">Get Started</Link>
-          <Link to="/login" className="ld-btn ld-btn-ghost ld-lg">Login</Link>
+      {/* FINAL CTA */}
+      <section className="sp-final-cta sp-reveal">
+        <div className="sp-cta-glow" />
+        <span className="sp-section-number">READY FOR THE NEXT LEVEL?</span>
+        <h2>Take control of your <span className="sp-gradient-text">entire operation.</span></h2>
+        <p>Everything connected. Every decision smarter. Every operation under control.</p>
+        <div>
+          <Link to="/register" className="sp-button sp-big-btn">Get Started Free →</Link>
+          <Link to="/login" className="sp-outline-btn">Login</Link>
         </div>
       </section>
 
-      {/* ===== FOOTER ===== */}
-      <footer className="ld-footer">
-        <div className="ld-footer-top">
+      {/* FOOTER */}
+      <footer className="sp-footer">
+        <div className="sp-footer-inner">
           <div>
-            <Logo size={24} />
-            <p>Inventory and manufacturing control for modern small factories.</p>
+            <Logo size={30} />
+            <p>Inventory and manufacturing control for modern businesses.</p>
           </div>
           <div>
-            <b>Product</b>
+            <strong>Platform</strong>
             <a href="#features" onClick={go("features")}>Features</a>
+            <a href="#how-it-works" onClick={go("how-it-works")}>How it works</a>
             <a href="#about" onClick={go("about")}>About</a>
-            <a href="#contact" onClick={go("contact")}>Contact</a>
           </div>
           <div>
-            <b>Account</b>
+            <strong>Account</strong>
             <Link to="/login">Login</Link>
             <Link to="/register">Register</Link>
+            <a href="#contact" onClick={go("contact")}>Contact</a>
           </div>
         </div>
-        <div className="ld-footer-bottom">StockPro v1.0 · Industrial Operations Platform</div>
+        <div className="sp-footer-bottom">
+          © {new Date().getFullYear()} StockPro · Industrial Operations Platform · Made with ❤️ in Pune
+        </div>
       </footer>
-
-      <a href="#home" onClick={go("home")} className={`ld-top ${scrolled ? "ld-top-show" : ""}`} aria-label="Back to top">↑</a>
     </div>
   );
 };
 
-/* ---------------- styles (kept inside this file on purpose) ---------------- */
 const CSS = `
+* { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-.ld { background:#060d18; color:#eaf2f8; font-family:"Segoe UI",system-ui,sans-serif; overflow-x:hidden; }
-.ld a { color:inherit; text-decoration:none; }
-.ld * { box-sizing:border-box; }
-
-.ld-progress { position:fixed; top:0; left:0; height:3px; z-index:100; background:linear-gradient(90deg,#3b82f6,#22d3ee); box-shadow:0 0 12px #22d3ee; transition:width .1s linear; }
-
-/* ---- navbar: always ONE line ---- */
-.ld-nav { position:fixed; top:0; left:0; right:0; z-index:60; display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; justify-content:space-between; gap:20px; padding:18px 56px; transition:background .3s,padding .3s,box-shadow .3s; }
-.ld-nav-solid { background:rgba(6,13,24,.82); backdrop-filter:blur(16px); padding:11px 56px; box-shadow:0 1px 0 rgba(255,255,255,.08), 0 10px 30px rgba(0,0,0,.35); }
-.ld-brand { flex-shrink:0; }
-.ld-links { display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; gap:6px; }
-.ld-links a { position:relative; white-space:nowrap; padding:9px 18px; color:#b9c7d8; font-size:14.5px; font-weight:500; transition:color .2s; }
-.ld-links a::after { content:""; position:absolute; left:18px; right:18px; bottom:3px; height:2px; border-radius:2px; background:linear-gradient(90deg,#3b82f6,#22d3ee); transform:scaleX(0); transform-origin:left; transition:transform .3s; }
-.ld-links a:hover, .ld-links a.ld-active { color:#fff; }
-.ld-links a:hover::after, .ld-links a.ld-active::after { transform:scaleX(1); }
-.ld-actions { display:flex; flex-direction:row; flex-wrap:nowrap; gap:10px; flex-shrink:0; }
-
-.ld-btn { position:relative; overflow:hidden; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; padding:9px 22px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:transform .2s,box-shadow .25s,background .2s; }
-.ld-btn-primary { background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff !important; }
-.ld-btn-primary:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(37,99,235,.55); }
-.ld-btn-ghost { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.3); color:#fff !important; }
-.ld-btn-ghost:hover { background:rgba(255,255,255,.15); transform:translateY(-3px); }
-.ld-btn-light { background:#fff; color:#1d4ed8 !important; }
-.ld-btn-light:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(255,255,255,.3); }
-.ld-lg { padding:15px 34px; font-size:15.5px; border-radius:12px; }
-.ld-shine::after { content:""; position:absolute; top:0; left:-120%; width:60%; height:100%; background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent); transform:skewX(-20deg); animation:ldShine 3.2s ease-in-out infinite; }
-@keyframes ldShine { 0%{left:-120%} 55%,100%{left:170%} }
-
-/* ---- hero ---- */
-.ld-hero { position:relative; min-height:100vh; display:flex; align-items:center; padding:120px 56px 90px; overflow:hidden; background:#060d18; }
-.ld-hero-bg { position:absolute; inset:-4%; background:url('/factory-bg.png') center/cover no-repeat; animation:ldKen 24s ease-in-out infinite alternate; }
-@keyframes ldKen { from{transform:scale(1) translateX(0)} to{transform:scale(1.14) translateX(-2%)} }
-.ld-hero-shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(4,9,20,.94) 0%,rgba(4,9,20,.7) 50%,rgba(4,9,20,.3) 100%), linear-gradient(180deg,transparent 65%,#060d18 100%); }
-.ld-orb { position:absolute; border-radius:50%; filter:blur(90px); opacity:.45; pointer-events:none; animation:ldOrb 12s ease-in-out infinite; }
-.ld-orb1 { width:440px; height:440px; background:#2563eb; top:-120px; left:-100px; }
-.ld-orb2 { width:380px; height:380px; background:#06b6d4; bottom:-120px; right:6%; animation-delay:-6s; }
-@keyframes ldOrb { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,-50px)} }
-.ld-particles { position:absolute; inset:0; pointer-events:none; }
-.ld-particles i { position:absolute; border-radius:50%; background:#67e8f9; opacity:0; animation:ldRise linear infinite; box-shadow:0 0 8px #22d3ee; }
-@keyframes ldRise { 0%{transform:translateY(40px);opacity:0} 20%{opacity:.8} 100%{transform:translateY(-160px);opacity:0} }
-
-.ld-hero-grid { position:relative; z-index:2; width:100%; max-width:1240px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center; }
-.ld-hero-inner { max-width:660px; animation:ldUp 1s ease both; }
-@keyframes ldUp { from{opacity:0;transform:translateY(34px)} to{opacity:1;transform:none} }
-.ld-pill { display:inline-flex; align-items:center; gap:9px; padding:8px 17px; border-radius:99px; margin-bottom:24px; background:rgba(59,130,246,.16); border:1px solid rgba(59,130,246,.45); color:#93c5fd; font-size:13px; font-weight:600; }
-.ld-pill i { width:8px; height:8px; border-radius:50%; background:#22d3ee; animation:ldPulse 1.6s ease-in-out infinite; }
-@keyframes ldPulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.7)} 50%{box-shadow:0 0 0 8px rgba(34,211,238,0)} }
-.ld-hero h1 { font-size:58px; line-height:1.08; font-weight:800; letter-spacing:-1.5px; margin-bottom:24px; }
-.ld-type { color:#fff; border-bottom:3px solid #3b82f6; }
-.ld-type em { display:inline-block; width:3px; height:.85em; margin-left:4px; vertical-align:-4px; background:#22d3ee; animation:ldBlink 1s step-end infinite; }
-@keyframes ldBlink { 50%{opacity:0} }
-.ld-grad { background:linear-gradient(90deg,#3b82f6,#22d3ee,#3b82f6); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:ldFlow 4s linear infinite; }
-@keyframes ldFlow { to{background-position:200% center} }
-.ld-hero p { font-size:17.5px; line-height:1.75; color:#c3d0e0; max-width:560px; margin-bottom:34px; }
-.ld-hero-cta { display:flex; gap:14px; flex-wrap:wrap; }
-.ld-stats { display:flex; gap:46px; margin-top:56px; flex-wrap:wrap; }
-.ld-stats strong { display:block; font-size:34px; font-weight:800; }
-.ld-stats span { color:#94a8bf; font-size:13px; }
-
-.ld-float-wrap { position:relative; height:540px; }
-.ld-float { position:absolute; display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px; background:rgba(12,22,40,.7); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.14); box-shadow:0 20px 50px rgba(0,0,0,.5); animation:ldFloat 6s ease-in-out infinite; }
-.ld-float b { display:block; font-size:14.5px; }
-.ld-float small { color:#94a8bf; font-size:12.5px; }
-.ld-f1 { top:6px; right:0; }
-.ld-f2 { bottom:110px; left:-18px; animation-delay:-2s; }
-.ld-f3 { bottom:6px; right:14px; animation-delay:-4s; }
-@keyframes ldFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }
-.ld-dot-r, .ld-dot-g { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
-.ld-dot-r { background:#ef4444; animation:ldRed 1.4s ease-in-out infinite; }
-.ld-dot-g { background:#22c55e; box-shadow:0 0 12px #22c55e; }
-@keyframes ldRed { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.7)} 50%{box-shadow:0 0 0 10px rgba(239,68,68,0)} }
-.ld-ring { position:relative; width:46px; height:46px; flex-shrink:0; }
-.ld-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
-.ld-ring circle { fill:none; stroke:rgba(255,255,255,.15); stroke-width:4; }
-.ld-ring circle.fg { stroke:#22d3ee; stroke-linecap:round; stroke-dasharray:94; stroke-dashoffset:94; animation:ldRing 2.4s ease .6s forwards; }
-@keyframes ldRing { to{stroke-dashoffset:30} }
-.ld-ring b { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; }
-
-.ld-scroll { position:absolute; bottom:26px; left:50%; transform:translateX(-50%); z-index:3; width:26px; height:42px; border:2px solid rgba(255,255,255,.4); border-radius:14px; }
-.ld-scroll span { position:absolute; top:7px; left:50%; width:4px; height:8px; margin-left:-2px; border-radius:2px; background:#22d3ee; animation:ldWheel 1.8s ease-in-out infinite; }
-@keyframes ldWheel { 0%{transform:translateY(0);opacity:1} 100%{transform:translateY(16px);opacity:0} }
-
-/* ---- marquee ---- */
-.ld-marquee { overflow:hidden; border-top:1px solid rgba(255,255,255,.08); border-bottom:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02); padding:18px 0; }
-.ld-track { display:flex; gap:44px; width:max-content; animation:ldScroll 38s linear infinite; }
-.ld-track span { white-space:nowrap; color:#9fb3c9; font-size:15px; font-weight:500; }
-.ld-marquee:hover .ld-track { animation-play-state:paused; }
-@keyframes ldScroll { to{transform:translateX(-50%)} }
-
-/* ---- sections ---- */
-.ld-section { padding:110px 56px; max-width:1240px; margin:0 auto; }
-.ld-alt { max-width:none; background:linear-gradient(180deg,#08111f,#0a1627); }
-.ld-alt > * { max-width:1128px; margin-left:auto; margin-right:auto; }
-.ld-head { text-align:center; margin-bottom:56px; }
-.ld-tag { display:inline-block; padding:6px 15px; border-radius:99px; margin-bottom:16px; background:rgba(34,211,238,.12); color:#67e8f9; font-size:12.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; }
-.ld-head h2, .ld-about h2 { font-size:40px; font-weight:800; letter-spacing:-.6px; margin-bottom:14px; }
-.ld-head p { color:#94a8bf; font-size:16.5px; max-width:600px; margin:0 auto; }
-.ld-reveal { opacity:0; transform:translateY(36px); transition:opacity .8s ease,transform .8s ease; }
-.ld-reveal.ld-in { opacity:1; transform:none; }
-
-.ld-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
-.ld-card { position:relative; overflow:hidden; background:linear-gradient(160deg,rgba(20,34,58,.9),rgba(11,20,36,.9)); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:30px; transition:opacity .8s ease,transform .3s,border-color .3s,box-shadow .3s; }
-.ld-card::before { content:""; position:absolute; inset:0; background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),rgba(59,130,246,.28),transparent 70%); opacity:0; transition:opacity .3s; pointer-events:none; }
-.ld-card:hover::before { opacity:1; }
-.ld-card:hover { border-color:rgba(59,130,246,.7); box-shadow:0 20px 50px rgba(37,99,235,.28); }
-.ld-icon { position:relative; display:flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:14px; font-size:26px; margin-bottom:20px; background:rgba(59,130,246,.16); border:1px solid rgba(59,130,246,.38); transition:transform .4s; }
-.ld-card:hover .ld-icon { transform:rotate(-8deg) scale(1.12); }
-.ld-card h3 { position:relative; font-size:19px; margin-bottom:10px; }
-.ld-card p { position:relative; color:#94a8bf; font-size:14.8px; line-height:1.7; }
-
-.ld-steps { position:relative; display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
-.ld-steps::before { content:""; position:absolute; top:58px; left:16%; width:0; height:2px; background:linear-gradient(90deg,#3b82f6,#22d3ee); transition:width 1.6s ease .4s; }
-.ld-steps.ld-in::before { width:68%; }
-.ld-step { position:relative; padding:32px; border-radius:18px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.09); transition:transform .3s,border-color .3s; }
-.ld-step:hover { transform:translateY(-6px); border-color:rgba(34,211,238,.5); }
-.ld-step-n { display:block; font-size:46px; font-weight:800; margin-bottom:10px; background:linear-gradient(90deg,#3b82f6,#22d3ee); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-.ld-step h3 { font-size:20px; margin-bottom:9px; }
-.ld-step p { color:#94a8bf; font-size:14.8px; line-height:1.7; }
-
-.ld-mock { border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.12); background:#0a1424; box-shadow:0 30px 90px rgba(0,0,0,.65),0 0 70px rgba(37,99,235,.18); }
-.ld-mock-bar { display:flex; align-items:center; gap:7px; padding:13px 16px; background:#0d1a2e; border-bottom:1px solid rgba(255,255,255,.08); }
-.ld-mock-bar i { width:10px; height:10px; border-radius:50%; }
-.ld-mock-bar i:nth-child(1){background:#ef4444} .ld-mock-bar i:nth-child(2){background:#f59e0b} .ld-mock-bar i:nth-child(3){background:#22c55e}
-.ld-mock-bar span { margin-left:12px; color:#6f849c; font-size:12px; }
-.ld-mock-body { display:grid; grid-template-columns:190px 1fr; min-height:350px; }
-.ld-mock-side { padding:18px 14px; background:#08111f; border-right:1px solid rgba(255,255,255,.07); display:flex; flex-direction:column; gap:6px; }
-.ld-mock-side b { color:#3b82f6; font-size:17px; margin-bottom:12px; }
-.ld-mock-side span { padding:9px 12px; border-radius:8px; color:#8fa3bb; font-size:13px; }
-.ld-mock-side span.on { background:rgba(59,130,246,.22); color:#fff; }
-.ld-mock-main { padding:20px; }
-.ld-mock-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
-.ld-mock-cards div { padding:14px; border-radius:12px; background:#0f1d33; border:1px solid rgba(255,255,255,.07); }
-.ld-mock-cards small, .ld-mock-chart small, .ld-mock-alerts small { display:block; color:#7f93aa; font-size:11.5px; margin-bottom:6px; }
-.ld-mock-cards strong { font-size:22px; }
-.ld-mock-cards .warn strong { color:#f87171; }
-.ld-mock-row { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; }
-.ld-mock-chart, .ld-mock-alerts { padding:14px; border-radius:12px; background:#0f1d33; border:1px solid rgba(255,255,255,.07); min-height:150px; }
-.bars { display:flex; align-items:flex-end; gap:10px; height:105px; }
-.bars span { flex:1; border-radius:6px 6px 0 0; background:linear-gradient(180deg,#22d3ee,#2563eb); transform:scaleY(0); transform-origin:bottom; transition:transform .9s cubic-bezier(.2,.8,.2,1); }
-.ld-mock.ld-in .bars span { transform:scaleY(1); }
-.ld-mock-alerts p { font-size:12.5px; color:#c3d0e0; margin:10px 0; display:flex; align-items:center; gap:8px; }
-.ld-mock-alerts i { width:8px; height:8px; border-radius:50%; }
-.ld-mock-alerts i.r { background:#ef4444; animation:ldRed 1.4s ease-in-out infinite; } .ld-mock-alerts i.a { background:#f59e0b; } .ld-mock-alerts i.g { background:#22c55e; }
-
-.ld-about { display:grid; grid-template-columns:1.2fr 1fr; gap:56px; align-items:center; }
-.ld-about h2 { text-align:left; }
-.ld-about p { color:#a9b9cc; line-height:1.8; margin-bottom:24px; }
-.ld-about ul { list-style:none; margin:0; padding:0; display:grid; gap:14px; }
-.ld-about li { display:flex; gap:13px; align-items:center; color:#dbe6f3; }
-.ld-about li span { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,.2); color:#4ade80; font-size:13px; font-weight:700; }
-.ld-about-card { padding:36px; border-radius:18px; background:linear-gradient(160deg,rgba(37,99,235,.22),rgba(11,20,36,.92)); border:1px solid rgba(59,130,246,.38); }
-.ld-about-card h3 { color:#93c5fd; font-size:15px; margin:0 0 8px; }
-.ld-about-card p { margin-bottom:24px; }
-.ld-about-card p:last-child { margin-bottom:0; }
-
-.ld-contact { display:grid; grid-template-columns:1fr 1.3fr; gap:28px; }
-.ld-contact-info { display:flex; flex-direction:column; gap:16px; }
-.ld-contact-info > div { display:flex; gap:16px; align-items:center; padding:22px; border-radius:16px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); transition:transform .3s,border-color .3s; }
-.ld-contact-info > div:hover { transform:translateX(8px); border-color:rgba(59,130,246,.6); }
-.ld-contact-info > div > span { font-size:22px; width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:13px; background:rgba(59,130,246,.16); }
-.ld-contact-info b { display:block; margin-bottom:3px; }
-.ld-contact-info p { margin:0; color:#94a8bf; font-size:14px; }
-.ld-form { display:flex; flex-direction:column; gap:14px; padding:30px; border-radius:18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); }
-.ld-form input, .ld-form textarea { width:100%; padding:14px 16px; border-radius:10px; font:inherit; font-size:14.5px; background:rgba(5,11,22,.85); color:#eaf2f8; border:1px solid rgba(255,255,255,.14); outline:none; resize:vertical; transition:border-color .2s,box-shadow .2s; }
-.ld-form input:focus, .ld-form textarea:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.25); }
-.ld-form-error { margin:0; color:#fca5a5; font-size:13.5px; }
-.ld-sent { text-align:center; padding:30px 10px; display:flex; flex-direction:column; gap:12px; align-items:center; }
-.ld-sent h3 { margin:0; color:#4ade80; font-size:24px; }
-.ld-sent p { margin:0; color:#94a8bf; }
-
-.ld-cta { position:relative; overflow:hidden; max-width:1128px; margin:0 auto 100px; padding:72px 30px; text-align:center; border-radius:24px; background:linear-gradient(135deg,#1d4ed8,#0e7490,#1d4ed8); background-size:220% 220%; animation:ldBg 9s ease infinite; border:1px solid rgba(255,255,255,.18); }
-@keyframes ldBg { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-.ld-cta h2 { font-size:36px; margin:0 0 12px; }
-.ld-cta p { color:#d4e3f8; margin:0 0 30px; }
-
-.ld-footer { background:#040a14; border-top:1px solid rgba(255,255,255,.08); padding:56px 56px 24px; }
-.ld-footer-top { max-width:1128px; margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr; gap:40px; }
-.ld-footer-top p { color:#7f93aa; font-size:14px; margin:12px 0 0; max-width:320px; line-height:1.65; }
-.ld-footer-top b { display:block; margin-bottom:14px; }
-.ld-footer-top a { display:block; color:#8fa3bb; font-size:14px; margin-bottom:10px; transition:color .2s,transform .2s; }
-.ld-footer-top a:hover { color:#fff; transform:translateX(4px); }
-.ld-footer-bottom { max-width:1128px; margin:38px auto 0; padding-top:22px; border-top:1px solid rgba(255,255,255,.08); text-align:center; color:#5f7389; font-size:13px; }
-
-.ld-top { position:fixed; right:26px; bottom:26px; z-index:70; width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:20px; background:linear-gradient(135deg,#2563eb,#06b6d4); box-shadow:0 10px 26px rgba(37,99,235,.5); opacity:0; transform:translateY(20px); pointer-events:none; transition:opacity .3s,transform .3s; }
-.ld-top-show { opacity:1; transform:none; pointer-events:auto; }
-
-@media (max-width:1000px) {
-  .ld-nav, .ld-nav-solid { padding-left:18px; padding-right:18px; gap:10px; }
-  .ld-hero { padding:110px 20px 80px; }
-  .ld-hero-grid { grid-template-columns:1fr; }
-  .ld-float-wrap { height:340px; }
-  .ld-float { display:none; }
-  .ld-hero h1 { font-size:46px; }
-  .ld-section { padding:80px 20px; }
-  .ld-grid, .ld-steps { grid-template-columns:1fr 1fr; }
-  .ld-steps::before { display:none; }
-  .ld-about, .ld-contact { grid-template-columns:1fr; }
-  .ld-mock-body { grid-template-columns:1fr; }
-  .ld-mock-side { display:none; }
-  .ld-mock-cards { grid-template-columns:1fr 1fr; }
-  .ld-footer { padding:44px 20px 20px; }
+body { margin: 0; background: #030712; }
+.stockpro {
+  --bg: #030712;
+  --panel: #0a1429;
+  --blue: #00c8ff;
+  --purple: #895cff;
+  --text: #f1f5ff;
+  --muted: #94a3b8;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
 }
-@media (max-width:680px) {
-  .ld-links a { padding:8px 7px; font-size:12.5px; }
-  .ld-links { gap:0; }
-  .ld-links a::after { left:7px; right:7px; }
-  .ld-brand .sp-logo span:last-child { display:none; }
-  .ld-btn { padding:8px 13px; font-size:13px; }
-  .ld-grid, .ld-steps, .ld-mock-row, .ld-footer-top { grid-template-columns:1fr; }
-  .ld-hero h1 { font-size:36px; }
-  .ld-head h2, .ld-about h2 { font-size:28px; }
-  .ld-stats { gap:26px; }
+.stockpro a { text-decoration: none; color: inherit; }
+.stockpro button, .stockpro input, .stockpro textarea { font: inherit; }
+.sp-progress {
+  position: fixed; z-index: 300; top: 0; left: 0; height: 3px;
+  background: linear-gradient(90deg,#895cff,#00c8ff);
+  box-shadow: 0 0 14px #00c8ff; transition: width .1s;
 }
-@media (prefers-reduced-motion: reduce) {
-  .ld *, .ld *::before, .ld *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+.sp-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 6%; transition: .3s;
 }
+.sp-nav-solid {
+  background: rgba(3,7,18,.88); backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0,200,255,.12); padding-top: 13px; padding-bottom: 13px;
+}
+.sp-logo { display: flex; align-items: center; }
+.sp-nav-links { display: flex; gap: 28px; }
+.sp-nav-links a { color: #b8c5dc; font-size: 13px; transition: .3s; }
+.sp-nav-links a:hover { color: var(--blue); }
+.sp-nav-actions { display: flex; align-items: center; gap: 18px; }
+.sp-login { color: #cbd5e1; font-size: 13px; }
+.sp-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+  color: white; font-weight: 700; border: 1px solid #4d71ff;
+  background: linear-gradient(120deg,#6637ee,#087cfa);
+  border-radius: 40px; box-shadow: 0 0 25px #583dff55;
+  transition: .3s; cursor: pointer;
+}
+.sp-button:hover { transform: translateY(-4px); box-shadow: 0 0 35px #00bfff88; }
+.sp-small-btn { padding: 11px 22px; font-size: 12px; }
+.sp-big-btn { padding: 15px 28px; font-size: 14px; }
+.sp-menu-btn { display: none; color: white; background: none; border: 0; font-size: 24px; }
 
-/* ---- 3D layer ---- */
-.ld-3d { position:absolute; inset:0; transform:rotateX(calc(var(--py,0) * -7deg)) rotateY(calc(var(--px,0) * 11deg)); transition:transform .25s ease-out; }
-.ld-3d .cw-stage { --cw-scale:.86; }
-.ld-float { translate:calc(var(--px,0) * -28px) calc(var(--py,0) * -20px); }
-.ld-track span::before { content:"◆"; color:#22d3ee; margin-right:14px; font-size:9px; vertical-align:2px; }
-.ld-grid > div { display:flex; }
-.ld-grid > div > .ld-card { width:100%; }
-.ld-card { transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)); transform-style:preserve-3d; transition:transform .18s ease-out,border-color .3s,box-shadow .3s; }
-.ld-card:hover { translate:0 -8px; }
-.ld-icon svg { width:26px; height:26px; fill:none; stroke:#67e8f9; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-.ld-icon { transform:translateZ(34px); }
-.ld-card h3 { transform:translateZ(22px); }
-.ld-card p { transform:translateZ(14px); }
-.ld-card:hover .ld-icon { transform:translateZ(48px) rotate(-8deg) scale(1.12); }
-.ld-mock-stage { perspective:1800px; padding:34px 0; }
-.ld-mock-3d { position:relative; transform-style:preserve-3d; transform:rotateX(9deg) rotateY(-11deg); transition:transform .7s cubic-bezier(.2,.8,.2,1); }
-.ld-mock-stage:hover .ld-mock-3d { transform:rotateX(2deg) rotateY(-2deg); }
-.ld-pop { position:absolute; z-index:5; display:flex; flex-direction:column; gap:3px; padding:14px 20px; border-radius:16px; background:rgba(12,22,40,.82); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,.18); box-shadow:0 26px 50px rgba(0,0,0,.55); animation:ldFloat 6s ease-in-out infinite; }
-.ld-pop b { font-size:26px; } .ld-pop small { color:#94a8bf; font-size:11.5px; }
-.ld-pop1 { top:-30px; right:-18px; translate:0 0 90px; }
-.ld-pop2 { bottom:34px; left:-26px; flex-direction:row; align-items:center; gap:10px; font-size:13px; translate:0 0 70px; animation-delay:-3s; }
-.ld-pop2 i { width:10px; height:10px; border-radius:50%; background:#ef4444; animation:ldRed 1.4s ease-in-out infinite; }
-@media (max-width:1000px) { .ld-mock-3d { transform:none; } .ld-pop { display:none; } }
+.sp-hero {
+  min-height: 850px; min-height: max(850px,100vh);
+  position: relative; display: flex; align-items: center;
+  padding: 125px 6% 90px; overflow: hidden;
+  background: radial-gradient(ellipse at 75% 45%,#102b67 0%,transparent 45%),
+  radial-gradient(ellipse at 10% 90%,#20114a 0%,transparent 40%),#030712;
+}
+.sp-grid-bg {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(#2671c10c 1px,transparent 1px),linear-gradient(90deg,#2671c10c 1px,transparent 1px);
+  background-size: 55px 55px;
+  mask-image: linear-gradient(to bottom,black,transparent);
+}
+.sp-glow { position: absolute; border-radius: 50%; filter: blur(100px); pointer-events: none; }
+.sp-glow-one { width: 450px; height: 450px; background: #4432ff44; top: -100px; left: -150px; animation: spGlow 8s infinite alternate; }
+.sp-glow-two { width: 450px; height: 450px; background: #00aaff30; right: -150px; bottom: -100px; animation: spGlow 7s infinite alternate-reverse; }
+.sp-stars span {
+  position: absolute; width: 3px; height: 3px; background: #b2eaff;
+  border-radius: 50%; box-shadow: 0 0 9px #00c8ff; animation: spTwinkle 3s infinite alternate;
+}
+.sp-hero-inner {
+  position: relative; z-index: 2; width: 100%; max-width: 1450px;
+  margin: auto; display: grid; grid-template-columns: .9fr 1.1fr;
+  align-items: center; gap: 45px;
+}
+.sp-eyebrow {
+  display: inline-flex; align-items: center; gap: 9px;
+  border: 1px solid #5543b866; background: #4834a322;
+  color: #c5c2ff; padding: 9px 15px; border-radius: 30px;
+  font-size: 10px; letter-spacing: 1.3px; font-weight: 700;
+}
+.sp-live-dot { width: 7px; height: 7px; background: #00e5a0; border-radius: 50%; box-shadow: 0 0 12px #00e5a0; display: inline-block; animation: spPulse 1.5s infinite; }
+.sp-hero-title { font-size: clamp(48px,5.6vw,82px); line-height: 1.08; font-weight: 850; letter-spacing: -3px; margin: 28px 0 20px; }
+.sp-hero-title > span:first-child { background: linear-gradient(90deg,#00c8ff,#8b5cf6); background-clip: text; -webkit-text-fill-color: transparent; }
+.sp-gradient-text { background: linear-gradient(100deg,#a78bfa,#00c8ff,#8b5cf6); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.sp-cursor { color: #00c8ff; animation: spBlink .8s infinite; }
+.sp-hero-desc { max-width: 480px; font-size: 15px; line-height: 1.9; color: #9aabc5; }
+.sp-hero-buttons { display: flex; align-items: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+.sp-watch { font-size: 13px; color: #d4def0; display: flex; align-items: center; gap: 10px; }
+.sp-watch span { border: 1px solid #687cba; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--blue); }
+.sp-hero-stats { display: flex; gap: 32px; margin-top: 55px; }
+.sp-hero-stats div { display: flex; flex-direction: column; gap: 5px; }
+.sp-hero-stats strong { font-size: 24px; color: white; }
+.sp-hero-stats small { color: #7284a2; font-size: 11px; }
+
+.sp-hero-visual { position: relative; min-height: 520px; display: grid; place-items: center; perspective: 1200px; }
+.sp-dashboard {
+  position: relative; z-index: 3; width: min(100%,580px); padding: 25px;
+  border-radius: 23px; border: 1px solid #5a90ff66;
+  background: linear-gradient(145deg,#132c58eF,#08152deF);
+  box-shadow: 0 35px 100px #000a,0 0 60px #176bff35,inset 0 1px #ffffff22;
+  transform-style: preserve-3d; transition: transform .15s ease-out;
+  animation: spDashboardFloat 6s ease-in-out infinite;
+}
+.sp-dash-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; font-size: 11px; }
+.sp-dash-brand { color: #8ddfff; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.sp-dash-date { color: #8299bd; }
+.sp-dash-kpis { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.sp-dash-kpis div { background: #ffffff08; border: 1px solid #ffffff12; padding: 14px 12px; border-radius: 12px; display: flex; flex-direction: column; gap: 7px; }
+.sp-dash-kpis small { color: #8da4c4; font-size: 10px; }
+.sp-dash-kpis strong { font-size: 23px; }
+.sp-dash-kpis em { font-size: 10px; color: #00e5a0; font-style: normal; }
+.sp-chart-area { margin-top: 25px; background: #030c1d88; border: 1px solid #ffffff12; border-radius: 15px; padding: 15px; }
+.sp-chart-heading { display: flex; justify-content: space-between; font-size: 11px; }
+.sp-chart-heading span { color: #758bab; }
+.sp-chart-svg { width: 100%; margin-top: 12px; overflow: visible; }
+.sp-chart-line { stroke-dasharray: 800; stroke-dashoffset: 800; animation: spDraw 3s ease forwards infinite alternate; }
+.sp-chart-area-fill { opacity: .8; animation: spFade 3s infinite alternate; }
+.sp-dash-bottom { display: flex; align-items: center; justify-content: space-around; padding-top: 20px; }
+.sp-mini-bars { height: 90px; display: flex; align-items: end; gap: 9px; }
+.sp-mini-bars span { width: 20px; background: linear-gradient(#00c8ff,#704bff); border-radius: 5px 5px 0 0; transform-origin: bottom; animation: spBar .9s ease both infinite alternate; }
+.sp-production-ring { width: 85px; height: 85px; border-radius: 50%; background: conic-gradient(#00e5c2 92%,#24385e 0); display: grid; place-items: center; }
+.sp-production-ring > div { background: #0a1831; width: 68px; height: 68px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.sp-production-ring strong { font-size: 17px; color: #00dfff; }
+.sp-production-ring small { font-size: 8px; color: #9aabc5; }
+.sp-orbit { position: absolute; width: 110%; height: 45%; border: 1px solid #5d52ff88; border-radius: 50%; transform: rotate(-22deg); box-shadow: 0 0 20px #5844ff44; animation: spOrbit 12s linear infinite; }
+.orbit-two { width: 100%; height: 70%; transform: rotate(55deg); border-color: #00bfff77; animation-duration: 18s; }
+.sp-floating-alert { position: absolute; z-index: 5; display: flex; gap: 10px; align-items: center; background: #101e39ee; border: 1px solid #526da866; padding: 12px; border-radius: 12px; box-shadow: 0 15px 35px #0008; animation: spFloat 5s ease-in-out infinite; }
+.sp-floating-alert span { font-size: 21px; }
+.sp-floating-alert div { display: flex; flex-direction: column; gap: 5px; }
+.sp-floating-alert strong { font-size: 11px; }
+.sp-floating-alert small { font-size: 9px; color: #91a5c5; }
+.alert-left { left: -4%; top: 15%; }
+.alert-right { right: -3%; bottom: 13%; animation-delay: -2s; }
+.sp-cube-cluster { position: absolute; z-index: 4; right: 3%; bottom: 8%; display: flex; gap: 8px; }
+.sp-cube-float { position: relative; display: grid; place-items: center; animation: spCubeFloat 4s ease-in-out infinite; }
+.sp-cube { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transform: rotateX(-25deg) rotateY(35deg); animation: spCubeRotate 12s linear infinite; }
+.sp-cube i { position: absolute; inset: 0; display: block; background: color-mix(in srgb,var(--cube-color) 30%,transparent); border: 1px solid var(--cube-color); box-shadow: inset 0 0 15px var(--cube-color),0 0 15px color-mix(in srgb,var(--cube-color) 40%,transparent); }
+.sp-cube .front { transform: translateZ(24px); }
+.sp-cube .back { transform: rotateY(180deg) translateZ(24px); }
+.sp-cube .right { transform: rotateY(90deg) translateZ(24px); }
+.sp-cube .left { transform: rotateY(-90deg) translateZ(24px); }
+.sp-cube .top { transform: rotateX(90deg) translateZ(24px); }
+.sp-cube .bottom { transform: rotateX(-90deg) translateZ(24px); }
+.sp-scroll { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); color: #8297ba; font-size: 10px; letter-spacing: 2px; display: flex; gap: 10px; align-items: center; }
+.sp-scroll span { font-size: 20px; color: var(--blue); animation: spBounce 1s infinite; }
+
+.sp-scene { position: relative; padding: 110px 6%; overflow: hidden; border-top: 1px solid #16264a66; }
+.sp-scene:before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(#174b8510 1px,transparent 1px),linear-gradient(90deg,#174b8510 1px,transparent 1px); background-size: 60px 60px; pointer-events: none; }
+.sp-section-inner { position: relative; z-index: 2; max-width: 1250px; margin: auto; }
+.sp-inventory { background: radial-gradient(ellipse at 65% 50%,#122b593d,transparent 55%),#040a18; }
+.sp-inventory-layout,.sp-production-layout,.sp-ai-layout { display: grid; grid-template-columns: .8fr 1.2fr; align-items: center; gap: 60px; }
+.sp-section-number { font-size: 10px; letter-spacing: 2px; color: #7d9ac3; font-weight: 700; }
+.sp-scene-copy h2 { font-size: clamp(36px,4.5vw,58px); line-height: 1.1; margin: 25px 0 12px; letter-spacing: -1.5px; }
+.sp-scene-copy p { color: #d9e6ff; font-size: 16px; font-weight: 600; }
+.sp-scene-copy > small { display: block; max-width: 390px; color: #8294b3; line-height: 1.9; font-size: 13px; margin: 18px 0 27px; }
+.sp-outline-btn { display: inline-flex; padding: 12px 20px; border: 1px solid #7163ff; color: #c4c4ff; background: #5c4aff13; border-radius: 30px; cursor: pointer; font-size: 12px; transition: .3s; }
+.sp-outline-btn:hover { background: #6450ff33; box-shadow: 0 0 25px #635bff55; transform: translateY(-3px); }
+.sp-inventory-world { min-height: 420px; position: relative; display: flex; align-items: center; justify-content: center; perspective: 900px; }
+.sp-platform { position: absolute; width: 75%; height: 95px; bottom: 50px; background: linear-gradient(120deg,#172d62,#10214a); border: 1px solid #388bff; border-radius: 18px; transform: rotateX(60deg) rotateZ(-8deg); box-shadow: 0 25px 50px #006bff55, inset 0 0 25px #007bff55; }
+.sp-cube-grid { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3,55px); gap: 8px; transform: rotateX(8deg) rotateY(-12deg); }
+.sp-cube-grid .sp-cube-float:nth-child(2),.sp-cube-grid .sp-cube-float:nth-child(4),.sp-cube-grid .sp-cube-float:nth-child(6) { transform: translateY(-30px); }
+.sp-stock-tooltip,.sp-low-stock { position: absolute; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 13px; background: #101d38ee; border: 1px solid #5479bc88; border-radius: 12px; animation: spFloat 5s infinite; }
+.sp-stock-tooltip { top: 30px; right: -3%; }
+.sp-low-stock { bottom: 20px; right: 3%; border-color: #ff626c99; animation-delay: -2s; }
+.sp-stock-tooltip > span,.sp-low-stock > span { font-size: 23px; }
+.sp-stock-tooltip div,.sp-low-stock div { display: flex; flex-direction: column; gap: 5px; }
+.sp-stock-tooltip strong,.sp-low-stock strong { font-size: 11px; }
+.sp-stock-tooltip small,.sp-low-stock small { color: #a0aec4; font-size: 10px; }
+.sp-stock-tooltip em { color: #00e5a0; font-size: 9px; font-style: normal; }
+.sp-low-stock em { color: #ff666e; font-size: 9px; font-style: normal; }
+
+.sp-production { background: radial-gradient(ellipse at 30% 50%,#1d164c66,transparent 50%),#030916; }
+.sp-production-layout { grid-template-columns: 1.2fr .8fr; }
+.sp-production-visual { min-height: 380px; position: relative; display: flex; align-items: center; justify-content: center; perspective: 700px; }
+.sp-factory { width: 90%; position: relative; height: 240px; }
+.sp-factory-building { position: absolute; right: 10%; top: 15px; width: 55%; height: 145px; background: linear-gradient(140deg,#293b6e,#101e3d); border: 2px solid #657fff; box-shadow: 0 0 30px #3d65ff66; transform: skewY(-4deg); }
+.sp-factory-building:before { content: ""; position: absolute; width: 100%; height: 18px; background: #506bba; top: -18px; }
+.sp-factory-window { position: absolute; top: 25px; left: 15%; width: 65%; height: 65px; background: linear-gradient(120deg,#0aa9f7,#4936aa); border: 3px solid #8099ff; box-shadow: 0 0 20px #00aaff; }
+.sp-factory-door { position: absolute; bottom: 0; right: 15%; width: 25%; height: 55px; background: #090f25; border: 1px solid #718aff; }
+.sp-conveyor { position: absolute; bottom: 25px; left: 0; width: 90%; height: 50px; background: linear-gradient(#4861aa,#17254b); border: 2px solid #5a8cff; transform: skewY(-5deg); box-shadow: 0 0 30px #226aff88; }
+.sp-belt { height: 100%; display: flex; align-items: center; justify-content: space-around; }
+.sp-belt span { width: 10px; height: 10px; border-radius: 50%; background: #0a1530; border: 1px solid #00c8ff; }
+.sp-moving-products { position: absolute; left: 10%; top: -38px; width: 80%; display: flex; justify-content: space-around; }
+.sp-robot-arm { position: absolute; left: 18%; top: 35px; font-size: 65px; color: #a4b7ff; text-shadow: 0 0 20px #377cff; transform-origin: bottom; animation: spRobot 3s ease-in-out infinite alternate; }
+.sp-smoke { position: absolute; top: -35px; width: 20px; height: 20px; border-radius: 50%; background: #a4c6ff66; filter: blur(7px); animation: spSmoke 3s infinite; }
+.smoke-one { left: 20%; }
+.smoke-two { left: 50%; animation-delay: 1.2s; }
+.sp-production-visual > .sp-production-ring { position: absolute; left: -2%; top: 5%; width: 105px; height: 105px; z-index: 3; }
+
+.sp-supply { background: radial-gradient(ellipse at center,#11265366,transparent 65%),#040a18; }
+.sp-section-heading { text-align: center; margin: 0 auto 65px; max-width: 800px; }
+.sp-section-heading h2 { font-size: clamp(32px,4vw,52px); margin: 22px 0 12px; letter-spacing: -1.5px; }
+.sp-section-heading p { color: #93a7c5; font-size: 14px; }
+.sp-supply-flow { position: relative; display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; padding: 25px 0; }
+.sp-flow-line { position: absolute; left: 12%; right: 12%; height: 2px; top: 80px; background: #23446b; }
+.sp-flow-line i { position: absolute; height: 3px; width: 25%; background: linear-gradient(90deg,transparent,#00dfff,transparent); animation: spFlow 3s linear infinite; }
+.sp-flow-node { position: relative; z-index: 2; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: spFloat 5s ease-in-out infinite; }
+.sp-flow-node:nth-child(even) { animation-delay: -2s; }
+.sp-flow-icon { width: 105px; height: 105px; display: grid; place-items: center; font-size: 39px; background: linear-gradient(145deg,#172e5a,#0b1833); border: 1px solid #4378c9; border-radius: 24px; box-shadow: 0 0 30px #087fff30; }
+.sp-flow-node strong { font-size: 14px; }
+.sp-flow-node small { color: #8296b6; font-size: 10px; }
+.sp-flow-check { color: #00e5a0; font-size: 12px; }
+
+.sp-ai { background: radial-gradient(ellipse at 70% 50%,#33206c55,transparent 55%),#030712; }
+.sp-ai-world { min-height: 420px; position: relative; display: grid; place-items: center; }
+.sp-ai-orb { position: relative; width: 220px; height: 220px; display: grid; place-items: center; }
+.sp-ai-core { width: 145px; height: 145px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 25%,#5e60df,#111a54 60%,#050b24); border: 2px solid #8e81ff; box-shadow: 0 0 35px #604cff, inset 0 0 30px #00aaff55; animation: spCore 3s infinite alternate; z-index: 2; }
+.sp-ai-core span { font-size: 36px; color: #b9eaff; }
+.sp-ai-core strong { font-size: 18px; }
+.sp-ai-core small { color: #00dfff; font-size: 9px; letter-spacing: 3px; margin-top: 5px; }
+.sp-ai-ring { position: absolute; inset: 0; border: 2px solid #8275ff; border-radius: 50%; transform: rotateX(65deg); box-shadow: 0 0 15px #5b54ff; animation: spOrbit 8s linear infinite; }
+.ring-b { transform: rotateY(65deg) rotateX(25deg); border-color: #00dfff; animation-duration: 11s; }
+.ring-c { inset: -25px; transform: rotateX(75deg) rotateZ(50deg); border-color: #b56cff; animation-duration: 14s; }
+.sp-ai-active .sp-ai-core { box-shadow: 0 0 80px #00c8ff,0 0 120px #804cff; }
+.sp-ai-card { position: absolute; display: flex; flex-direction: column; gap: 7px; padding: 13px; background: #111d3cdd; border: 1px solid #6a70cb88; border-radius: 12px; box-shadow: 0 15px 30px #0008; animation: spFloat 5s infinite; }
+.sp-ai-card span { color: #00c8ff; }
+.sp-ai-card strong { font-size: 11px; }
+.sp-ai-card small { font-size: 9px; color: #9bacc9; }
+.ai-card-one { top: 20px; left: -3%; }
+.ai-card-two { right: -4%; top: 25%; animation-delay: -2s; }
+.ai-card-three { bottom: 15px; left: 4%; animation-delay: -3s; }
+
+.sp-content-section { padding: 105px 6%; max-width: 1450px; margin: auto; }
+.sp-dark-section { max-width: none; background: linear-gradient(180deg,#071226,#030712); }
+.sp-dark-section > .sp-section-heading,.sp-dark-section > .sp-steps-grid { max-width: 1250px; margin-left: auto; margin-right: auto; }
+.sp-features-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+.sp-feature-card { position: relative; padding: 30px; background: linear-gradient(145deg,#101c35,#080f20); border: 1px solid #263b60; border-radius: 18px; transition: .35s; overflow: hidden; }
+.sp-feature-card:hover { transform: translateY(-9px); border-color: var(--feature-color); box-shadow: 0 15px 50px #0008,0 0 25px color-mix(in srgb,var(--feature-color) 20%,transparent); }
+.sp-feature-icon { width: 55px; height: 55px; display: grid; place-items: center; font-size: 25px; border-radius: 15px; background: color-mix(in srgb,var(--feature-color) 13%,transparent); border: 1px solid color-mix(in srgb,var(--feature-color) 35%,transparent); margin-bottom: 22px; }
+.sp-feature-card h3 { font-size: 17px; }
+.sp-feature-card p { color: #8fa0bc; font-size: 13px; line-height: 1.8; }
+.sp-feature-arrow { color: var(--feature-color); position: absolute; right: 24px; top: 25px; font-size: 20px; }
+.sp-steps-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 25px; }
+.sp-step-card { position: relative; padding: 35px; background: #ffffff06; border: 1px solid #ffffff16; border-radius: 18px; text-align: center; }
+.sp-step-icon { font-size: 35px; margin-bottom: 18px; }
+.sp-step-card > span { font-size: 36px; font-weight: 800; color: #00c8ff; }
+.sp-step-card h3 { font-size: 19px; }
+.sp-step-card p { color: #8fa0bc; font-size: 13px; line-height: 1.7; }
+.sp-step-arrow { position: absolute; right: -21px; top: 50%; color: #00c8ff; font-size: 23px; z-index: 2; }
+.sp-about-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; }
+.sp-about-layout h2 { font-size: clamp(34px,4vw,48px); margin: 22px 0; }
+.sp-about-desc { color: #91a2bd; font-size: 14px; line-height: 1.9; margin-bottom: 25px; }
+.sp-about-point { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #00d9bd; font-size: 15px; }
+.sp-about-point span { color: #cbd5e1; font-size: 13px; }
+.sp-about-visual { min-height: 340px; display: grid; place-items: center; }
+.sp-about-glass { width: 100%; padding: 55px 35px; border-radius: 25px; background: linear-gradient(145deg,#162b54,#0a1430); border: 1px solid #5874bf88; box-shadow: 0 30px 70px #0008,0 0 45px #473aff33; text-align: center; }
+.sp-about-orb { width: 95px; height: 95px; margin: auto auto 25px; display: grid; place-items: center; font-size: 50px; border-radius: 50%; background: radial-gradient(circle,#7564ff,#101c58); box-shadow: 0 0 45px #645aff; animation: spCore 3s infinite alternate; }
+.sp-about-glass h3 { font-size: 25px; margin: 8px; }
+.sp-tech-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 25px; }
+.sp-tech-tags span { padding: 7px 12px; border: 1px solid #5c67a566; background: #ffffff08; color: #aab9d6; font-size: 10px; border-radius: 30px; }
+.sp-contact-layout { display: grid; grid-template-columns: .8fr 1.2fr; gap: 35px; max-width: 1050px; margin: auto; }
+.sp-contact-item { display: flex; gap: 17px; align-items: center; padding: 22px; margin-bottom: 15px; border: 1px solid #ffffff13; border-radius: 15px; background: #ffffff05; }
+.sp-contact-item > span { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: #4238a844; color: #00dfff; font-size: 23px; }
+.sp-contact-item div { display: flex; flex-direction: column; gap: 7px; }
+.sp-contact-item strong { font-size: 13px; }
+.sp-contact-item small { color: #8fa0bc; font-size: 12px; }
+.sp-contact-form { padding: 28px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #ffffff16; background: #ffffff06; border-radius: 20px; }
+.sp-contact-form input,.sp-contact-form textarea { width: 100%; border: 1px solid #35496d; background: #071226; color: white; border-radius: 10px; padding: 14px; outline: none; font-size: 13px; }
+.sp-contact-form input:focus,.sp-contact-form textarea:focus { border-color: #00c8ff; box-shadow: 0 0 15px #00c8ff22; }
+.sp-contact-form textarea { min-height: 125px; resize: vertical; }
+.sp-success { text-align: center; padding: 30px; }
+.sp-success > span { font-size: 50px; color: #00e5a0; }
+.sp-success p { color: #8fa0bc; font-size: 13px; }
+
+.sp-final-cta { position: relative; margin: 30px 6% 90px; padding: 80px 25px; text-align: center; border: 1px solid #6070ff77; border-radius: 25px; background: linear-gradient(120deg,#171c55,#0b2850,#27134e); overflow: hidden; }
+.sp-final-cta h2 { position: relative; font-size: clamp(30px,4vw,48px); max-width: 800px; margin: 25px auto 15px; }
+.sp-final-cta p { position: relative; color: #a5b7d4; font-size: 14px; margin-bottom: 30px; }
+.sp-final-cta > div:last-child { position: relative; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+.sp-cta-glow { position: absolute; width: 350px; height: 350px; border-radius: 50%; background: #00bfff33; filter: blur(100px); left: 35%; top: -150px; }
+.sp-footer { padding: 55px 6% 20px; background: #02050d; border-top: 1px solid #ffffff12; }
+.sp-footer-inner { max-width: 1200px; margin: auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 50px; }
+.sp-footer-inner > div { display: flex; flex-direction: column; align-items: flex-start; gap: 13px; }
+.sp-footer-inner p { color: #71829e; max-width: 260px; font-size: 12px; line-height: 1.8; }
+.sp-footer-inner strong { font-size: 13px; color: #d5e1f5; margin-bottom: 5px; }
+.sp-footer-inner a:not(:first-child) { font-size: 12px; color: #71829e; transition: .2s; }
+.sp-footer-inner a:hover { color: #00c8ff; }
+.sp-footer-bottom { text-align: center; border-top: 1px solid #ffffff10; margin-top: 35px; padding-top: 22px; color: #53637c; font-size: 11px; }
+
+.sp-reveal { opacity: 0; transform: translateY(35px); transition: opacity .8s ease,transform .8s ease; }
+.sp-reveal.sp-visible { opacity: 1; transform: translateY(0); }
+
+@keyframes spBlink { 50% { opacity: 0; } }
+@keyframes spPulse { 50% { opacity: .35; box-shadow: 0 0 3px #00e5a0; } }
+@keyframes spTwinkle { to { opacity: .2; transform: scale(.5); } }
+@keyframes spGlow { to { transform: translate(70px,40px) scale(1.2); } }
+@keyframes spDashboardFloat { 0%,100% { translate: 0 0; } 50% { translate: 0 -13px; } }
+@keyframes spFloat { 0%,100% { translate: 0 0; } 50% { translate: 0 -13px; } }
+@keyframes spCubeFloat { 0%,100% { translate: 0 0; } 50% { translate: 0 -13px; } }
+@keyframes spCubeRotate { to { rotate: 0 1 0 360deg; } }
+@keyframes spOrbit { to { rotate: 360deg; } }
+@keyframes spDraw { to { stroke-dashoffset: 0; } }
+@keyframes spFade { to { opacity: .3; } }
+@keyframes spBar { to { transform: scaleY(.7); } }
+@keyframes spBounce { 50% { transform: translateY(7px); } }
+@keyframes spFlow { from { left: -30%; } to { left: 100%; } }
+@keyframes spRobot { to { transform: rotate(12deg); } }
+@keyframes spSmoke { 0% { opacity: 0; transform: translateY(20px) scale(.5); } 50% { opacity: .8; } 100% { opacity: 0; transform: translateY(-35px) scale(2); } }
+@keyframes spCore { to { transform: scale(1.07); filter: brightness(1.3); } }
+
+@media(max-width:1050px) {
+  .sp-hero-inner { grid-template-columns: 1fr; }
+  .sp-hero { padding-top: 140px; }
+  .sp-hero-copy { text-align: center; }
+  .sp-hero-desc { margin-left: auto; margin-right: auto; }
+  .sp-hero-buttons,.sp-hero-stats { justify-content: center; }
+  .sp-hero-visual { max-width: 650px; width: 100%; margin: 30px auto 0; }
+  .sp-inventory-layout,.sp-production-layout,.sp-ai-layout { gap: 35px; }
+  .sp-floating-alert { transform: scale(.85); }
+  .sp-nav-links { gap: 13px; }
+}
+@media(max-width:700px) {
+  .sp-nav { padding: 14px 5%; }
+  .sp-nav-actions { margin-left: auto; margin-right: 15px; }
+  .sp-nav-actions .sp-login { display: none; }
+  .sp-small-btn { padding: 9px 13px; font-size: 10px; }
+  .sp-menu-btn { display: block; }
+  .sp-nav-links { display: none; position: absolute; top: 65px; left: 4%; right: 4%; padding: 20px; flex-direction: column; gap: 18px; background: #0b1630f5; border: 1px solid #41568a; border-radius: 15px; }
+  .sp-menu-open { display: flex; }
+  .sp-nav-links a { padding: 5px; }
+  .sp-hero { padding: 120px 5% 85px; }
+  .sp-hero-title { font-size: clamp(43px,11vw,64px); letter-spacing: -2px; }
+  .sp-hero-desc { font-size: 13px; }
+  .sp-hero-stats { gap: 20px; }
+  .sp-hero-stats strong { font-size: 19px; }
+  .sp-hero-visual { min-height: 380px; }
+  .sp-dashboard { padding: 14px; }
+  .sp-dash-kpis { gap: 5px; }
+  .sp-dash-kpis div { padding: 9px 6px; }
+  .sp-dash-kpis strong { font-size: 17px; }
+  .sp-dash-kpis small { font-size: 8px; }
+  .sp-floating-alert { padding: 8px; }
+  .alert-left { left: -3%; top: 5%; }
+  .alert-right { right: -2%; bottom: 4%; }
+  .sp-scene,.sp-content-section { padding: 75px 5%; }
+  .sp-inventory-layout,.sp-production-layout,.sp-ai-layout { grid-template-columns: 1fr; }
+  .sp-production-layout .sp-production-visual { order: 2; }
+  .sp-production-layout .sp-scene-copy { order: 1; }
+  .sp-scene-copy h2 { font-size: 42px; }
+  .sp-inventory-world { min-height: 370px; }
+  .sp-stock-tooltip { right: -2%; top: 5px; }
+  .sp-low-stock { right: -2%; bottom: 0; }
+  .sp-production-visual { min-height: 300px; }
+  .sp-factory { transform: scale(.85); }
+  .sp-supply-flow { grid-template-columns: repeat(2,1fr); gap: 35px 10px; }
+  .sp-flow-line { display: none; }
+  .sp-flow-icon { width: 85px; height: 85px; font-size: 32px; }
+  .sp-ai-world { min-height: 360px; }
+  .sp-ai-card { transform: scale(.85); }
+  .ai-card-one { left: -3%; }
+  .ai-card-two { right: -3%; }
+  .sp-features-grid { grid-template-columns: repeat(2,1fr); gap: 12px; }
+  .sp-feature-card { padding: 19px; }
+  .sp-feature-card h3 { font-size: 14px; }
+  .sp-feature-card p { font-size: 11px; }
+  .sp-steps-grid { grid-template-columns: 1fr; }
+  .sp-step-arrow { display: none; }
+  .sp-about-layout,.sp-contact-layout { grid-template-columns: 1fr; gap: 30px; }
+  .sp-about-glass { padding: 35px 20px; }
+  .sp-final-cta { margin: 15px 5% 60px; padding: 60px 18px; }
+  .sp-footer-inner { grid-template-columns: 1fr 1fr; gap: 30px; }
+  .sp-footer-inner > div:first-child { grid-column: 1/-1; }
+}
+@media(max-width:400px) {
+  .sp-features-grid { grid-template-columns: 1fr; }
+  .sp-hero-stats { gap: 13px; }
+  .sp-hero-stats strong { font-size: 17px; }
+  .sp-hero-visual { min-height: 320px; }
+  .sp-dashboard { padding: 10px; }
+  .sp-dash-kpis strong { font-size: 14px; }
+  .sp-floating-alert { transform: scale(.7); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .stockpro *, .stockpro *:before, .stockpro *:after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
 `;
 
 export default Landing;
