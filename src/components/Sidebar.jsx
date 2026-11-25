@@ -42,12 +42,13 @@ const Sidebar = ({ open, onNavigate }) => {
       ],
     },
     {
-      title: "System",
-      items: [
-        ...(isAdmin ? [{ to: "/users", label: "User Management", icon: "settings" }] : []),
-        { to: "/settings", label: "Settings", icon: "settings" },
-      ],
-    },
+  title: "System",
+  items: [
+    ...(isAdmin ? [{ to: "/users", label: "User Management", icon: "settings" }] : []),
+    ...(isAdmin || isManager ? [{ to: "/audit-log", label: "Audit Log", icon: "reports" }] : []),
+    { to: "/settings", label: "Settings", icon: "settings" },
+  ],
+},
   ];
 
   const handleLogout = () => {

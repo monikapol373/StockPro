@@ -10,6 +10,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { useToast } from "../context/ToastContext";
 import ExcelImport from "../components/ExcelImport";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useAuditLog } from "../context/AuditLogContext";
 
 const CATEGORIES = [
   "Raw Material",
@@ -86,6 +87,7 @@ const Inventory = () => {
   const { productions = [] } = useContext(ProductionContext);
   const { customerOrders = [] } = useContext(CustomerOrdersContext);
   const { canEdit } = useRoleGuard();
+  const { addLog } = useAuditLog();
 
   const toast = useToast();
   const fileInputRef = useRef(null);
@@ -258,6 +260,11 @@ const Inventory = () => {
     }));
     setProducts([...products, ...withIds]);
     toast.success(`${withIds.length} products imported from Excel successfully.`);
+    addLog({
+      action: "IMPORT",
+      module: "Inventory",
+      details: `Imported ${withIds.length} products from Excel`,
+    });
   };
 
   const openAddModal = () => {
@@ -311,8 +318,14 @@ const Inventory = () => {
       setProducts([...products, newProduct]);
     }
     toast.success(editingProduct ? `${name} updated` : `${name} added to inventory`);
-    handleCloseModal();
+     addLog({
+      action: editingProduct ? "UPDATE" : "CREATE",
+      module: "Inventory",
+      details: editingProduct ? `Updated product: ${name}` : `Added product: ${name}`,
+    });
   };
+    handleCloseModal();
+    
 
   const handleEdit = (product) => {
   if (!canEdit()) return;
@@ -365,10 +378,15 @@ const Inventory = () => {
   };
 
   const confirmDelete = () => {
-    setProducts(products.filter((product) => product.id !== deleteTarget.id));
-    toast.success(`${deleteTarget.name} deleted`);
-    setDeleteTarget(null);
-  };
+  setProducts(products.filter((product) => product.id !== deleteTarget.id));
+  toast.success(`${deleteTarget.name} deleted`);
+  addLog({
+    action: "DELETE",
+    module: "Inventory",
+    details: `Deleted product: ${deleteTarget.name}`,
+  });
+  setDeleteTarget(null);
+};
 
   const filteredProducts = products.filter((product) => {
     const query = search.toLowerCase();

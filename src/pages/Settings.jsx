@@ -2,6 +2,12 @@ import React, { useRef, useState } from "react";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { getDefaultMinStock, setDefaultMinStock } from "../utils/stock";
 import { apiEnabled, apiClearAll, apiPut } from "../utils/syncApi";
+import { sendLowStockAlert, sendDelayedOrdersAlert } from "../utils/emailApi";
+import { useContext } from "react";
+import AuthContext from "../context/AuthContext";
+import InventoryContext from "../context/InventoryContext";
+import OrdersContext from "../context/OrdersContext";
+import { getStockStatus } from "../utils/stock";
 
 const PREFIX = "stockpro:";
 
@@ -33,6 +39,41 @@ const Settings = () => {
   const [pendingRestore, setPendingRestore] = useState(null);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [minStock, setMinStock] = useState(String(getDefaultMinStock()));
+  const { isAdmin, user } = useContext(AuthContext);
+  const { products = [] } = useContext(InventoryContext);
+  const { orders = [] } = useContext(OrdersContext);
+  const [alertEmail, setAlertEmail] = useState(user?.email || "");
+  const [alertSending, setAlertSending] = useState("");
+  const [alertResult, setAlertResult] = useState("");
+
+  const lowStockProducts = products.filter((p) => {
+    const min = Number(p.minStock ?? getDefaultMinStock());
+    return Number(p.quantity) <= min;
+  });
+
+  const delayedOrders = orders.filter((o) => {
+    if (o.status === "Received") return false;
+    if (!o.expectedDate) return false;
+    return new Date(o.expectedDate) < new Date();
+  });
+
+  const sendAlert = async (type) => {
+    setAlertSending(type);
+    setAlertResult("");
+    try {
+      let result;
+      if (type === "low-stock") {
+        result = await sendLowStockAlert({ to: alertEmail, products: lowStockProducts });
+      } else {
+        result = await sendDelayedOrdersAlert({ to: alertEmail, orders: delayedOrders });
+      }
+      setAlertResult(result.ok ? "✅ Email sent!" : `❌ ${result.reason}`);
+    } catch (err) {
+      setAlertResult(`❌ ${err.message}`);
+    } finally {
+      setAlertSending("");
+    }
+  };
 
   const keys = getStoredKeys();
   const sizeKB = (
@@ -197,6 +238,42 @@ const Settings = () => {
           </button>
         </section>
       </div>
+
+      {isAdmin && (
+        <div className="st-card">
+          <Ic k="limit"/>
+          <div className="st-card-body">
+            <h3>Email Alerts</h3>
+            <p>Send low stock or delayed order alerts to your email.</p>
+            <div style={{display:"flex", gap:"10px", marginTop:"12px", flexWrap:"wrap"}}>
+              <input type="email"
+              value={alertEmail}
+              onChange={(e) => setAlertEmail(e.target.value)}
+              placeholder="Send alert to email"
+              style={{flex:1, padding:"10px 14px", borderRadius:"8px", border:"1px solid #334155", background:"#f1f5f9", fontSize:"14px"}} 
+              />
+            </div>
+            <div style={{display:"flex", gap:"10px", marginTop:"10px", flexWrap:"wrap"}}>
+              <button
+              onClick={() => sendAlert("low-stock")}
+              disabled={!!alertSending || lowStockProducts.length === 0}
+              className="add-btn"
+              style={{fontSize:"13px", padding:"8px 16px"}}>
+                {alertSending === "low-stock" ? "Sending..." : `⚠️ Send Low Stock Alert (${lowStockProducts.length})`}
+              </button>
+              <button 
+              onClick={() => sendAlert("delayed-orders")}
+              disabled={!!alertSending || delayedOrders.length === 0}
+              className="add-btn"
+              style={{fontSize:"13px", padding:"8px 16px", background:"#f59e0b"}}>
+                {alertSending === "delayed-orders" ? "Sending..." : `🕒 Send Delayed Orders Alert (${delayedOrders.length})`}
+              </button>
+            </div>
+            {alertResult && <p style={{marginTop:"10px", fontSize:"13px"}}>
+              {alertResult}</p>}
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={showReset}

@@ -5,6 +5,7 @@ import InventoryContext from "../context/InventoryContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useToast } from "../context/ToastContext";
 import InvoiceModal from "../components/InvoicePDF";
+import { useAuditLog } from "../context/AuditLogContext";
 
 const CustomerOrders = () => {
   const ctx = useContext(CustomerOrdersContext);
@@ -24,6 +25,7 @@ const CustomerOrders = () => {
   const [pending, setPending] = useState(null);
   const [filter, setFilter] = useState("all");
   const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const { addLog } = useAuditLog();
 
   const finishedGoods = products.filter(
     (product) =>
@@ -50,12 +52,22 @@ const CustomerOrders = () => {
     const result = createCustomerOrder({ customerName: name, productId, quantity: qty });
     if (!result.ok) { setFormError(result.error); return; }
     toast.success("Customer order created");
+    addLog({
+      action: "CREATE",
+      module: "Customer Orders",
+      details: `Created orders for ${name} — ${qty} units`,
+    });
     closeModal();
   };
 
   const runDispatch = () => {
     if (!pending || typeof dispatchOrder !== "function") {
       toast.error("Dispatch action is unavailable.");
+      addLog({
+        action: "UPDATE",
+        module: "Customer Orders",
+        details: `Dispatched order ${order.id} for ${order.customerName}`,
+      });
       setPending(null);
       return;
     }

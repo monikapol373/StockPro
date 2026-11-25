@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectDB } from "./db.js";
 import { KV } from "./models.js";
 import { buildAuthRoutes, verifyToken, requireRole } from "./auth.js";
+import { sendEmail, lowStockEmailHtml, delayedOrderEmailHtml } from "./email.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -125,6 +126,38 @@ export function buildServer({ corsOrigin = "" } = {}) {
           return await handleLogin(req, res);
         throw new HttpError(404, "Not found.");
       }
+
+      // email alert routes — admin only
+if (parts[0] === "alerts" && parts[1] === "email") {
+  let decoded;
+  try { decoded = verifyToken(req); } catch {
+    throw new HttpError(401, "Login required.");
+  }
+  if (decoded.role !== "admin") throw new HttpError(403, "Admin only.");
+
+  const raw = await readBody(req);
+  let body;
+  try { body = JSON.parse(raw); } catch {
+    throw new HttpError(400, "Body must be valid JSON.");
+  }
+
+  const { type, to, data } = body || {};
+  if (!to || !type) throw new HttpError(400, "to and type are required.");
+
+  let html, subject;
+  if (type === "low-stock") {
+    subject = `⚠️ Low Stock Alert — ${data?.length || 0} products need attention`;
+    html = lowStockEmailHtml(data || []);
+  } else if (type === "delayed-orders") {
+    subject = `🕒 Delayed Orders Alert — ${data?.length || 0} orders overdue`;
+    html = delayedOrderEmailHtml(data || []);
+  } else {
+    throw new HttpError(400, "Invalid type. Use low-stock or delayed-orders.");
+  }
+
+  const result = await sendEmail({ to, subject, html });
+  return send(res, 200, result);
+}
 
       // admin: users management
       if (parts[0] === "admin" && parts[1] === "users") {

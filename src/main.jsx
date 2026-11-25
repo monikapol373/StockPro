@@ -20,6 +20,8 @@ import { ProductionProvider } from './context/ProductionContext.jsx'
 import { CustomerOrdersProvider } from './context/CustomerOrdersContext.jsx'
 import { DecisionLogProvider } from './context/DecisionLogContext.jsx'
 import "./styles/mobile.css";
+import "./styles/auditlog.css";
+import { AuditLogProvider } from './context/AuditLogContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -33,7 +35,9 @@ createRoot(document.getElementById('root')).render(
                   <SuppliersProvider>
                     <BomProvider>
                       <DecisionLogProvider>
-                        <App />
+                        <AuditLogProvider>
+                          <App />
+                        </AuditLogProvider>
                       </DecisionLogProvider>
                     </BomProvider>
                   </SuppliersProvider>

@@ -21,6 +21,7 @@ import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SmartReorder from "./pages/SmartReorder";
 import UserManagement from "./pages/UserManagement";
+import AuditLog from "./pages/AuditLog";
 
 const App = () => {
   return (
@@ -49,6 +50,7 @@ const App = () => {
           <Route path="/reorder" element={<SmartReorder />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/audit-log" element={<AuditLog/>}/>
         </Route>
       </Route>
     </Routes>

@@ -42,6 +42,12 @@ export const AuthProvider = ({ children }) => {
         const session = { name: data.name, email: data.email, role: data.role };
         sessionStorage.setItem(SESSION_USER, JSON.stringify(session));
         setUser(session);
+        addLog &&
+          addLog({
+            action: "LOGIN",
+            module: "Auth",
+            details: `${data.name} logged in`,
+          });
         return { ok: true };
       } catch (err) {
         return { ok: false, error: err.message };
@@ -62,7 +68,9 @@ export const AuthProvider = ({ children }) => {
   const isStaff = user?.role === "staff";
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAdmin, isManager, isStaff }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, isAdmin, isManager, isStaff }}
+    >
       {children}
     </AuthContext.Provider>
   );
