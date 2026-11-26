@@ -6,7 +6,7 @@ import { connectDB } from "./db.js";
 import { KV } from "./models.js";
 import { buildAuthRoutes, verifyToken, requireRole } from "./auth.js";
 import { sendEmail, lowStockEmailHtml, delayedOrderEmailHtml } from "./email.js";
-import  Razorpay from "razorpay";
+import Razorpay from "razorpay";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -74,7 +74,7 @@ export function buildServer({ corsOrigin = "" } = {}) {
     res.end(text);
   };
 
-  const { handleRegister, handleLogin, handleGetUsers, handleUpdateUser } = 
+  const { handleRegister, handleLogin, handleGetUsers, handleUpdateUser } =
     buildAuthRoutes(readBody, send, HttpError);
 
   const parseKey = (raw) => {
@@ -129,72 +129,72 @@ export function buildServer({ corsOrigin = "" } = {}) {
       }
 
       // email alert routes — admin only
-if (parts[0] === "alerts" && parts[1] === "email") {
-  let decoded;
-  try { decoded = verifyToken(req); } catch {
-    throw new HttpError(401, "Login required.");
-  }
-  if (decoded.role !== "admin") throw new HttpError(403, "Admin only.");
+      if (parts[0] === "alerts" && parts[1] === "email") {
+        let decoded;
+        try { decoded = verifyToken(req); } catch {
+          throw new HttpError(401, "Login required.");
+        }
+        if (decoded.role !== "admin") throw new HttpError(403, "Admin only.");
 
-  const raw = await readBody(req);
-  let body;
-  try { body = JSON.parse(raw); } catch {
-    throw new HttpError(400, "Body must be valid JSON.");
-  }
+        const raw = await readBody(req);
+        let body;
+        try { body = JSON.parse(raw); } catch {
+          throw new HttpError(400, "Body must be valid JSON.");
+        }
 
-  const { type, to, data } = body || {};
-  if (!to || !type) throw new HttpError(400, "to and type are required.");
+        const { type, to, data } = body || {};
+        if (!to || !type) throw new HttpError(400, "to and type are required.");
 
-  let html, subject;
-  if (type === "low-stock") {
-    subject = `⚠️ Low Stock Alert — ${data?.length || 0} products need attention`;
-    html = lowStockEmailHtml(data || []);
-  } else if (type === "delayed-orders") {
-    subject = `🕒 Delayed Orders Alert — ${data?.length || 0} orders overdue`;
-    html = delayedOrderEmailHtml(data || []);
-  } else {
-    throw new HttpError(400, "Invalid type. Use low-stock or delayed-orders.");
-  }
+        let html, subject;
+        if (type === "low-stock") {
+          subject = `⚠️ Low Stock Alert — ${data?.length || 0} products need attention`;
+          html = lowStockEmailHtml(data || []);
+        } else if (type === "delayed-orders") {
+          subject = `🕒 Delayed Orders Alert — ${data?.length || 0} orders overdue`;
+          html = delayedOrderEmailHtml(data || []);
+        } else {
+          throw new HttpError(400, "Invalid type. Use low-stock or delayed-orders.");
+        }
 
-  const result = await sendEmail({ to, subject, html });
-  return send(res, 200, result);
-}
+        const result = await sendEmail({ to, subject, html });
+        return send(res, 200, result);
+      }
 
-// Razorpay — create UPI QR order
-if (parts[0] === "payment" && parts[1] === "create-qr" && req.method === "POST") {
-  let decoded;
-  try { decoded = verifyToken(req); } catch {
-    throw new HttpError(401, "Login required.");
-  }
+      // Razorpay — create payment order
+      if (parts[0] === "payment" && parts[1] === "create-qr" && req.method === "POST") {
+        let decoded;
+        try { decoded = verifyToken(req); } catch {
+          throw new HttpError(401, "Login required.");
+        }
 
-  const raw = await readBody(req);
-  let body;
-  try { body = JSON.parse(raw); } catch {
-    throw new HttpError(400, "Body must be valid JSON.");
-  }
+        const raw = await readBody(req);
+        let body;
+        try { body = JSON.parse(raw); } catch {
+          throw new HttpError(400, "Body must be valid JSON.");
+        }
 
-  const { amount, orderId, customerName } = body || {};
-  if (!amount || !orderId) throw new HttpError(400, "amount and orderId required.");
+        const { amount, orderId, customerName } = body || {};
+        if (!amount || !orderId) throw new HttpError(400, "amount and orderId required.");
 
-  const rzp = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-  });
+        const rzp = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
 
-  const rzpOrder = await rzp.orders.create({
-    amount: Math.round(amount * 100), // paise madhe
-    currency: "INR",
-    receipt: orderId,
-    notes: { customerName: customerName || "" },
-  });
+        const rzpOrder = await rzp.orders.create({
+          amount: Math.round(amount * 100),
+          currency: "INR",
+          receipt: orderId,
+          notes: { customerName: customerName || "" },
+        });
 
-  return send(res, 200, {
-    rzpOrderId: rzpOrder.id,
-    amount: rzpOrder.amount,
-    currency: rzpOrder.currency,
-    keyId: process.env.RAZORPAY_KEY_ID,
-  });
-}
+        return send(res, 200, {
+          rzpOrderId: rzpOrder.id,
+          amount: rzpOrder.amount,
+          currency: rzpOrder.currency,
+          keyId: process.env.RAZORPAY_KEY_ID,
+        });
+      }
 
       // admin: users management
       if (parts[0] === "admin" && parts[1] === "users") {
@@ -206,7 +206,7 @@ if (parts[0] === "payment" && parts[1] === "create-qr" && req.method === "POST")
           throw new HttpError(403, "Admin access required.");
         }
         if (req.method === "GET") return await handleGetUsers(req, res);
-        if (req.method === "PATCH" && parts[2]) 
+        if (req.method === "PATCH" && parts[2])
           return await handleUpdateUser(req, res, parts[2]);
         throw new HttpError(405, "Method not allowed.");
       }
