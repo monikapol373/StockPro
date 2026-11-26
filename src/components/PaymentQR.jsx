@@ -11,24 +11,26 @@ const PaymentQR = ({ order, product, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [qrGenerated, setQrGenerated] = useState(false);
-  const [paid, setPaid] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState(null); // "success" | "failed" | null
-  const [timer, setTimer] = useState(900); // 15 minutes
+  const [timer, setTimer] = useState(900);
+  const [expired, setExpired] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null); // "paid" | "failed" | null
   const timerRef = useRef(null);
+  const pollRef = useRef(null);
   const canvasRef = useRef(null);
 
   const totalAmount = (Number(product?.price) || 0) * Number(order?.quantity || 1);
 
   // Timer countdown
   useEffect(() => {
-    if (qrGenerated && !paid) {
+    if (qrGenerated && paymentStatus !== "paid") {
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
             clearInterval(timerRef.current);
+            clearInterval(pollRef.current);
+            setExpired(true);
             setQrGenerated(false);
-            setTimer(900);
+            setPaymentStatus("failed");
             return 0;
           }
           return prev - 1;
@@ -36,7 +38,29 @@ const PaymentQR = ({ order, product, onClose }) => {
       }, 1000);
     }
     return () => clearInterval(timerRef.current);
-  }, [qrGenerated, paid]);
+  }, [qrGenerated, paymentStatus]);
+
+  // Poll backend every 5 seconds to check payment status
+  useEffect(() => {
+    if (qrGenerated && paymentStatus !== "paid") {
+      pollRef.current = setInterval(async () => {
+        try {
+          const token = getToken();
+          const res = await fetch(`${API}/payment/status/${order.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          if (data.status === "paid") {
+            clearInterval(pollRef.current);
+            clearInterval(timerRef.current);
+            setPaymentStatus("paid");
+            setQrGenerated(false);
+          }
+        } catch {}
+      }, 5000);
+    }
+    return () => clearInterval(pollRef.current);
+  }, [qrGenerated, paymentStatus]);
 
   const formatTime = (secs) => {
     const m = Math.floor(secs / 60).toString().padStart(2, "0");
@@ -47,7 +71,9 @@ const PaymentQR = ({ order, product, onClose }) => {
   const handleGenerateQR = () => {
     setLoading(true);
     setError("");
+    setExpired(false);
     setTimer(900);
+    setPaymentStatus(null);
 
     const token = getToken();
     if (!token) {
@@ -76,7 +102,7 @@ const PaymentQR = ({ order, product, onClose }) => {
         const upiString = `upi://pay?pa=polmonika7@okhdfcbank&pn=StockPro&am=${totalAmount}&cu=INR&tn=Order ${order.id}`;
 
         QRCode.toCanvas(canvasRef.current, upiString, {
-          width: 220,
+          width: 240,
           margin: 2,
           color: { dark: "#1e1b4b", light: "#ffffff" },
         }, (err) => {
@@ -90,23 +116,9 @@ const PaymentQR = ({ order, product, onClose }) => {
       });
   };
 
-  const handleMarkPaid = () => {
-    clearInterval(timerRef.current);
-    setPaymentStatus("success");
-    setPaid(true);
-    setConfirmOpen(false);
-  };
-
-  const handleMarkFailed = () => {
-    setPaymentStatus("failed");
-    setConfirmOpen(false);
-    setQrGenerated(false);
-    setTimer(900);
-  };
-
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 440, textAlign: "center" }}>
+      <div className="modal" style={{ maxWidth: 420, textAlign: "center" }}>
         <div className="modal-header">
           <div>
             <h2>💳 Customer Payment</h2>
@@ -116,15 +128,17 @@ const PaymentQR = ({ order, product, onClose }) => {
         </div>
 
         <div style={{ padding: "1.5rem" }}>
-          <div style={{ fontSize: "2rem", fontWeight: 700, color: "#6d28d9", marginBottom: "0.5rem" }}>
+          <div style={{ fontSize: "2rem", fontWeight: 700, color: "#6d28d9", marginBottom: "0.25rem" }}>
             ₹{totalAmount.toLocaleString("en-IN")}
           </div>
           <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
             {order.quantity} × ₹{Number(product?.price || 0).toLocaleString("en-IN")}
           </p>
 
+          {error && <p className="form-error">{error}</p>}
+
           {/* Payment Success */}
-          {paymentStatus === "success" && (
+          {paymentStatus === "paid" && (
             <div style={{
               background: "linear-gradient(135deg, #064e3b, #065f46)",
               border: "1px solid #34d399",
@@ -145,27 +159,24 @@ const PaymentQR = ({ order, product, onClose }) => {
             </div>
           )}
 
-          {/* Payment Failed */}
-          {paymentStatus === "failed" && !qrGenerated && (
+          {/* Payment Failed / Expired */}
+          {paymentStatus === "failed" && (
             <div style={{
-              background: "linear-gradient(135deg, #450a0a, #7f1d1d)",
+              background: "#450a0a",
               border: "1px solid #f87171",
-              borderRadius: 16,
-              padding: "1.25rem",
+              borderRadius: 12,
+              padding: "1rem",
               marginBottom: "1rem",
             }}>
               <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>❌</div>
-              <p style={{ color: "#f87171", fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.25rem" }}>
+              <p style={{ color: "#f87171", fontWeight: 600, marginBottom: "0.25rem" }}>
                 Payment Not Completed
               </p>
-              <p style={{ color: "#fca5a5", fontSize: "0.85rem" }}>
-                The payment was not received. Please ask the customer to try again.
+              <p style={{ color: "#fca5a5", fontSize: "0.8rem" }}>
+                The QR code has expired. Please generate a new QR code and try again.
               </p>
             </div>
           )}
-
-          {/* Error */}
-          {error && <p className="form-error">{error}</p>}
 
           {/* QR Canvas */}
           <canvas
@@ -178,14 +189,9 @@ const PaymentQR = ({ order, product, onClose }) => {
             }}
           />
 
-          {/* QR Generated State */}
-          {qrGenerated && !confirmOpen && (
+          {/* Timer + Scan instruction */}
+          {qrGenerated && (
             <>
-              <p style={{ color: "#6b7280", fontSize: "0.8rem", marginBottom: "0.25rem" }}>
-                Customer can scan using PhonePe / GPay / Paytm
-              </p>
-
-              {/* Timer */}
               <div style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -194,88 +200,44 @@ const PaymentQR = ({ order, product, onClose }) => {
                 border: `1px solid ${timer < 60 ? "#f87171" : "#6d28d9"}`,
                 borderRadius: 20,
                 padding: "0.3rem 0.9rem",
-                marginBottom: "1.25rem",
+                marginBottom: "0.75rem",
               }}>
-                <span style={{ fontSize: "0.75rem" }}>⏱</span>
+                <span>⏱</span>
                 <span style={{ color: timer < 60 ? "#f87171" : "#a78bfa", fontSize: "0.85rem", fontWeight: 600 }}>
-                  QR expires in {formatTime(timer)}
+                  {timer < 60 ? "Expiring soon — " : "Expires in "}{formatTime(timer)}
                 </span>
               </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <button
-                  className="pg-primary"
-                  style={{ width: "100%", padding: "0.75rem" }}
-                  onClick={() => setConfirmOpen(true)}
-                >
-                  ✅ Payment Received — Mark as Paid
-                </button>
-                <button
-                  className="pg-ghost"
-                  style={{ width: "100%", padding: "0.65rem", color: "#f87171" }}
-                  onClick={handleMarkFailed}
-                >
-                  ❌ Payment Not Received
-                </button>
-                <button
-                  className="pg-ghost"
-                  style={{ width: "100%", padding: "0.6rem", fontSize: "0.85rem" }}
-                  onClick={() => { setQrGenerated(false); setTimer(900); }}
-                >
-                  🔄 Regenerate QR
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* Confirm Dialog */}
-          {confirmOpen && (
-            <div style={{
-              background: "#1e1b4b",
-              border: "1px solid #6d28d9",
-              borderRadius: 12,
-              padding: "1.25rem",
-            }}>
-              <p style={{ color: "#fff", fontWeight: 700, fontSize: "1rem", marginBottom: "0.5rem" }}>
-                ⚠️ Confirm Payment Received
+              <p style={{ color: "#6b7280", fontSize: "0.8rem", marginBottom: "1rem" }}>
+                Scan using PhonePe / GPay / Paytm to complete payment
               </p>
-              <p style={{ color: "#9ca3af", fontSize: "0.85rem", marginBottom: "1.25rem" }}>
-                Please verify that <strong style={{ color: "#a78bfa" }}>₹{totalAmount.toLocaleString("en-IN")}</strong> has been successfully received from <strong style={{ color: "#a78bfa" }}>{order.customerName}</strong> before confirming.
+              <p style={{ color: "#a78bfa", fontSize: "0.75rem", marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                <span>🔄</span> Checking payment status automatically...
               </p>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button
-                  className="pg-ghost"
-                  style={{ flex: 1, padding: "0.65rem" }}
-                  onClick={() => setConfirmOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="pg-primary"
-                  style={{ flex: 1, padding: "0.65rem" }}
-                  onClick={handleMarkPaid}
-                >
-                  ✅ Yes, Confirm
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Generate QR Button */}
-          {!qrGenerated && !confirmOpen && paymentStatus !== "success" && (
-            <>
               <button
-                className="pg-primary"
-                style={{ width: "100%", padding: "0.85rem", fontSize: "1rem" }}
-                onClick={handleGenerateQR}
-                disabled={loading}
+                className="pg-ghost"
+                style={{ width: "100%", padding: "0.6rem", fontSize: "0.85rem" }}
+                onClick={() => {
+                  clearInterval(timerRef.current);
+                  clearInterval(pollRef.current);
+                  setQrGenerated(false);
+                  setTimer(900);
+                }}
               >
-                {loading ? "Generating..." : "🔳 Generate Payment QR"}
+                🔄 Regenerate QR
               </button>
-              <p style={{ color: "#9ca3af", fontSize: "0.75rem", marginTop: "0.75rem" }}>
-                Customer will scan and pay using any UPI app
-              </p>
             </>
+          )}
+
+          {/* Generate Button */}
+          {!qrGenerated && paymentStatus !== "paid" && (
+            <button
+              className="pg-primary"
+              style={{ width: "100%", padding: "0.85rem", fontSize: "1rem" }}
+              onClick={handleGenerateQR}
+              disabled={loading}
+            >
+              {loading ? "Generating..." : paymentStatus === "failed" ? "🔄 Generate New QR" : "🔳 Generate Payment QR"}
+            </button>
           )}
         </div>
       </div>
