@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { connectDB } from "./db.js";
 import { KV } from "./models.js";
@@ -196,6 +197,58 @@ export function buildServer({ corsOrigin = "" } = {}) {
         });
       }
 
+      // Razorpay Webhook — auto payment detection
+      if (parts[0] === "payment" && parts[1] === "webhook" && req.method === "POST") {
+        const rawBody = await readBody(req);
+        const signature = req.headers["x-razorpay-signature"];
+
+        const expectedSignature = crypto
+          .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET || "")
+          .update(rawBody)
+          .digest("hex");
+
+        if (signature !== expectedSignature) {
+          throw new HttpError(400, "Invalid webhook signature.");
+        }
+
+        const event = JSON.parse(rawBody);
+
+        if (event.event === "payment.captured") {
+          const payment = event.payload.payment.entity;
+          const orderId = payment.receipt || payment.notes?.orderId || "";
+
+          await KV.findOneAndUpdate(
+            { key: `payment:${orderId}` },
+            {
+              key: `payment:${orderId}`,
+              value: {
+                status: "paid",
+                amount: payment.amount / 100,
+                paymentId: payment.id,
+                method: payment.method,
+                paidAt: new Date().toISOString(),
+              },
+              updatedAt: new Date(),
+            },
+            { upsert: true, new: true }
+          );
+          console.log(`✅ Payment captured for order: ${orderId}`);
+        }
+
+        return send(res, 200, { ok: true });
+      }
+
+      // Payment status check
+      if (parts[0] === "payment" && parts[1] === "status" && parts[2] && req.method === "GET") {
+        let decoded;
+        try { decoded = verifyToken(req); } catch {
+          throw new HttpError(401, "Login required.");
+        }
+        const orderId = parts[2];
+        const doc = await KV.findOne({ key: `payment:${orderId}` });
+        return send(res, 200, { status: doc?.value?.status || "pending", data: doc?.value || null });
+      }
+
       // admin: users management
       if (parts[0] === "admin" && parts[1] === "users") {
         let decoded;
@@ -220,7 +273,6 @@ export function buildServer({ corsOrigin = "" } = {}) {
         throw new HttpError(401, "Login required.");
       }
 
-      // Staff: fakt read access — write blocked
       const isReadOnly = decoded.role === "staff";
 
       if (parts.length === 1) {
