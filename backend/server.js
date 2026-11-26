@@ -6,6 +6,7 @@ import { connectDB } from "./db.js";
 import { KV } from "./models.js";
 import { buildAuthRoutes, verifyToken, requireRole } from "./auth.js";
 import { sendEmail, lowStockEmailHtml, delayedOrderEmailHtml } from "./email.js";
+import  Razorpay from "razorpay";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -157,6 +158,42 @@ if (parts[0] === "alerts" && parts[1] === "email") {
 
   const result = await sendEmail({ to, subject, html });
   return send(res, 200, result);
+}
+
+// Razorpay — create UPI QR order
+if (parts[0] === "payment" && parts[1] === "create-qr" && req.method === "POST") {
+  let decoded;
+  try { decoded = verifyToken(req); } catch {
+    throw new HttpError(401, "Login required.");
+  }
+
+  const raw = await readBody(req);
+  let body;
+  try { body = JSON.parse(raw); } catch {
+    throw new HttpError(400, "Body must be valid JSON.");
+  }
+
+  const { amount, orderId, customerName } = body || {};
+  if (!amount || !orderId) throw new HttpError(400, "amount and orderId required.");
+
+  const rzp = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+
+  const rzpOrder = await rzp.orders.create({
+    amount: Math.round(amount * 100), // paise madhe
+    currency: "INR",
+    receipt: orderId,
+    notes: { customerName: customerName || "" },
+  });
+
+  return send(res, 200, {
+    rzpOrderId: rzpOrder.id,
+    amount: rzpOrder.amount,
+    currency: rzpOrder.currency,
+    keyId: process.env.RAZORPAY_KEY_ID,
+  });
 }
 
       // admin: users management

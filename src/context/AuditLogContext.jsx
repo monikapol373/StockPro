@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useCallback } from "react";
 import usePersistentState from "../hooks/usePersistentState";
 import AuthContext from "./AuthContext";
 
@@ -8,7 +8,7 @@ export const AuditLogProvider = ({ children }) => {
   const [logs, setLogs] = usePersistentState("stockpro:auditlog", []);
   const { user } = useContext(AuthContext);
 
-  const addLog = ({ action, module, details }) => {
+  const addLog = useCallback(({ action, module, details }) => {
     const entry = {
       id: `LOG-${Date.now()}`,
       action,
@@ -20,7 +20,7 @@ export const AuditLogProvider = ({ children }) => {
       timestamp: new Date().toISOString(),
     };
     setLogs((prev) => [entry, ...(prev || []).slice(0, 199)]);
-  };
+  }, [user, setLogs]);
 
   return (
     <AuditLogContext.Provider value={{ logs: logs || [], addLog }}>

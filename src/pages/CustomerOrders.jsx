@@ -6,6 +6,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import { useToast } from "../context/ToastContext";
 import InvoiceModal from "../components/InvoicePDF";
 import { useAuditLog } from "../context/AuditLogContext";
+import PaymentQR from "../components/PaymentQR";
 
 const CustomerOrders = () => {
   const ctx = useContext(CustomerOrdersContext);
@@ -25,11 +26,14 @@ const CustomerOrders = () => {
   const [pending, setPending] = useState(null);
   const [filter, setFilter] = useState("all");
   const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const [paymentOrder, setPaymentOrder] = useState(null);
   const { addLog } = useAuditLog();
 
   const finishedGoods = products.filter(
     (product) =>
-      String(product.category || "").trim().toLowerCase() === "finished goods"
+      String(product.category || "")
+        .trim()
+        .toLowerCase() === "finished goods",
   );
 
   const closeModal = () => {
@@ -44,13 +48,27 @@ const CustomerOrders = () => {
     event.preventDefault();
     const name = customerName.trim();
     const qty = Number(quantity);
-    if (!name) { setFormError("Customer name is required."); return; }
-    if (!productId) { setFormError("Select a product."); return; }
-    if (!Number.isInteger(qty) || qty < 1) {
-      setFormError("Quantity must be a whole number of at least 1."); return;
+    if (!name) {
+      setFormError("Customer name is required.");
+      return;
     }
-    const result = createCustomerOrder({ customerName: name, productId, quantity: qty });
-    if (!result.ok) { setFormError(result.error); return; }
+    if (!productId) {
+      setFormError("Select a product.");
+      return;
+    }
+    if (!Number.isInteger(qty) || qty < 1) {
+      setFormError("Quantity must be a whole number of at least 1.");
+      return;
+    }
+    const result = createCustomerOrder({
+      customerName: name,
+      productId,
+      quantity: qty,
+    });
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
     toast.success("Customer order created");
     addLog({
       action: "CREATE",
@@ -73,7 +91,10 @@ const CustomerOrders = () => {
     }
     const order = pending;
     const result = dispatchOrder(order.id);
-    setRowError((previous) => ({ ...previous, [order.id]: result.ok ? null : result.error }));
+    setRowError((previous) => ({
+      ...previous,
+      [order.id]: result.ok ? null : result.error,
+    }));
     if (result.ok) {
       toast.success(`${order.id} dispatched. Stock updated`);
     } else {
@@ -84,19 +105,25 @@ const CustomerOrders = () => {
 
   const planProduction = (order) => {
     navigate("/production", {
-      state: { productId: order.productId, targetQty: order.quantity, customerOrderId: order.id },
+      state: {
+        productId: order.productId,
+        targetQty: order.quantity,
+        customerOrderId: order.id,
+      },
     });
   };
 
   const pendingStock = pending
-    ? products.find((product) => product.id === pending.productId)?.quantity ?? 0
+    ? (products.find((product) => product.id === pending.productId)?.quantity ??
+      0)
     : 0;
 
   const rows = customerOrders.map((order) => {
     const product = products.find((item) => item.id === order.productId);
     const availableStock = Number(product?.quantity ?? 0);
     const required = Number(order.quantity) || 0;
-    const needsProduction = order.status === "Pending" && availableStock < required;
+    const needsProduction =
+      order.status === "Pending" && availableStock < required;
     return {
       order,
       product,
@@ -116,21 +143,36 @@ const CustomerOrders = () => {
   ];
 
   const countOf = (k) =>
-    rows.filter((r) =>
-      k === "all" || (k === "ready" && r.ready) ||
-      (k === "production" && r.needsProduction) || (k === "done" && r.done)
+    rows.filter(
+      (r) =>
+        k === "all" ||
+        (k === "ready" && r.ready) ||
+        (k === "production" && r.needsProduction) ||
+        (k === "done" && r.done),
     ).length;
 
   const visible = rows.filter(
     (r) =>
-      filter === "all" || (filter === "ready" && r.ready) ||
-      (filter === "production" && r.needsProduction) || (filter === "done" && r.done)
+      filter === "all" ||
+      (filter === "ready" && r.ready) ||
+      (filter === "production" && r.needsProduction) ||
+      (filter === "done" && r.done),
   );
 
   const stats = [
     { l: "Total Orders", v: rows.length, c: "#8b5cf6", s: "all time" },
-    { l: "Ready to Dispatch", v: countOf("ready"), c: "#34d399", s: "stock available" },
-    { l: "Needs Production", v: countOf("production"), c: "#fb923c", s: "stock is short" },
+    {
+      l: "Ready to Dispatch",
+      v: countOf("ready"),
+      c: "#34d399",
+      s: "stock available",
+    },
+    {
+      l: "Needs Production",
+      v: countOf("production"),
+      c: "#fb923c",
+      s: "stock is short",
+    },
     { l: "Dispatched", v: countOf("done"), c: "#3b82f6", s: "completed" },
   ];
 
@@ -141,7 +183,11 @@ const CustomerOrders = () => {
           <h1>Customer Orders</h1>
           <p>Manage customer orders and dispatch finished goods.</p>
         </div>
-        <button type="button" className="pg-primary" onClick={() => setShowModal(true)}>
+        <button
+          type="button"
+          className="pg-primary"
+          onClick={() => setShowModal(true)}
+        >
           + New Customer Order
         </button>
       </header>
@@ -158,14 +204,21 @@ const CustomerOrders = () => {
 
       <div className="pg-chips">
         {FILTERS.map(([k, label]) => (
-          <button type="button" key={k} className={filter === k ? "on" : ""} onClick={() => setFilter(k)}>
+          <button
+            type="button"
+            key={k}
+            className={filter === k ? "on" : ""}
+            onClick={() => setFilter(k)}
+          >
             {label} <em className="co-n">{countOf(k)}</em>
           </button>
         ))}
       </div>
 
       {customerOrders.length === 0 && (
-        <div className="pg-empty">No customer orders yet. Click "+ New Customer Order" to add one.</div>
+        <div className="pg-empty">
+          No customer orders yet. Click "+ New Customer Order" to add one.
+        </div>
       )}
       {customerOrders.length > 0 && visible.length === 0 && (
         <div className="pg-empty">No orders in this view.</div>
@@ -174,14 +227,26 @@ const CustomerOrders = () => {
       <div className="co-list">
         {visible.map((r) => {
           const { order } = r;
-          const pct = r.required ? Math.min(100, (r.availableStock / r.required) * 100) : 100;
-          const initials = String(order.customerName || "?").split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+          const pct = r.required
+            ? Math.min(100, (r.availableStock / r.required) * 100)
+            : 100;
+          const initials = String(order.customerName || "?")
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase();
           return (
-            <article className={`co-row ${r.needsProduction ? "short" : r.ready ? "ready" : "done"}`} key={order.id}>
+            <article
+              className={`co-row ${r.needsProduction ? "short" : r.ready ? "ready" : "done"}`}
+              key={order.id}
+            >
               <span className="co-av">{initials}</span>
               <div className="co-who">
                 <b>{order.customerName}</b>
-                <small>{order.id} · {order.orderDate}</small>
+                <small>
+                  {order.id} · {order.orderDate}
+                </small>
               </div>
               <div className="co-prod">
                 <b>{order.productName}</b>
@@ -193,21 +258,38 @@ const CustomerOrders = () => {
                 ) : (
                   <>
                     <div className="co-cover-t">
-                      <span>In stock <b>{r.availableStock}</b></span>
-                      <span>Required <b>{r.required}</b></span>
+                      <span>
+                        In stock <b>{r.availableStock}</b>
+                      </span>
+                      <span>
+                        Required <b>{r.required}</b>
+                      </span>
                     </div>
-                    <div className="co-bar"><i className={r.needsProduction ? "warn" : "good"} style={{ width: `${pct}%` }} /></div>
+                    <div className="co-bar">
+                      <i
+                        className={r.needsProduction ? "warn" : "good"}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </>
                 )}
               </div>
               <div className="co-act">
                 {r.needsProduction && (
-                  <button type="button" className="pg-primary sm" onClick={() => planProduction(order)}>
+                  <button
+                    type="button"
+                    className="pg-primary sm"
+                    onClick={() => planProduction(order)}
+                  >
                     Plan Production
                   </button>
                 )}
                 {r.ready && (
-                  <button type="button" className="pg-primary sm" onClick={() => setPending(order)}>
+                  <button
+                    type="button"
+                    className="pg-primary sm"
+                    onClick={() => setPending(order)}
+                  >
                     Dispatch
                   </button>
                 )}
@@ -215,13 +297,29 @@ const CustomerOrders = () => {
                   <button
                     type="button"
                     className="pg-ghost sm"
-                    onClick={() => setInvoiceOrder({ order, product: r.product })}
+                    onClick={() =>
+                      setInvoiceOrder({ order, product: r.product })
+                    }
                   >
                     🧾 Invoice
                   </button>
                 )}
+
+                {r.done && (
+                  <button
+                    type="button"
+                    className="pg-primary sm"
+                    onClick={() =>
+                      setPaymentOrder({ order, product: r.product })
+                    }
+                  >
+                    💳 Payment
+                  </button>
+                )}
               </div>
-              {rowError[order.id] && <p className="form-error co-err">{rowError[order.id]}</p>}
+              {rowError[order.id] && (
+                <p className="form-error co-err">{rowError[order.id]}</p>
+              )}
             </article>
           );
         })}
@@ -244,6 +342,14 @@ const CustomerOrders = () => {
         />
       )}
 
+      {paymentOrder && (
+        <PaymentQR
+          order={paymentOrder.order}
+          product={paymentOrder.product}
+          onClose={() => setPaymentOrder(null)}
+        />
+      )}
+
       {showModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -252,17 +358,36 @@ const CustomerOrders = () => {
                 <h2>New Customer Order</h2>
                 <p>Record an order to be fulfilled from stock.</p>
               </div>
-              <button type="button" className="close-btn" onClick={closeModal} aria-label="Close form">✕</button>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={closeModal}
+                aria-label="Close form"
+              >
+                ✕
+              </button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label htmlFor="customer-name">Customer Name</label>
-                  <input id="customer-name" type="text" value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Enter customer name" required />
+                  <input
+                    id="customer-name"
+                    type="text"
+                    value={customerName}
+                    onChange={(event) => setCustomerName(event.target.value)}
+                    placeholder="Enter customer name"
+                    required
+                  />
                 </div>
                 <div className="form-group full-width">
                   <label htmlFor="customer-product">Product</label>
-                  <select id="customer-product" value={productId} onChange={(event) => setProductId(event.target.value)} required>
+                  <select
+                    id="customer-product"
+                    value={productId}
+                    onChange={(event) => setProductId(event.target.value)}
+                    required
+                  >
                     <option value="">Select a finished product</option>
                     {finishedGoods.map((product) => (
                       <option key={product.id} value={product.id}>
@@ -272,19 +397,40 @@ const CustomerOrders = () => {
                   </select>
                   {finishedGoods.length === 0 && (
                     <small style={{ color: "#dc2626" }}>
-                      No Finished Goods found. Add a product with category "Finished Goods" in Inventory.
+                      No Finished Goods found. Add a product with category
+                      "Finished Goods" in Inventory.
                     </small>
                   )}
                 </div>
                 <div className="form-group">
                   <label htmlFor="customer-quantity">Quantity</label>
-                  <input id="customer-quantity" type="number" value={quantity} onChange={(event) => setQuantity(event.target.value)} min="1" step="1" required />
+                  <input
+                    id="customer-quantity"
+                    type="number"
+                    value={quantity}
+                    onChange={(event) => setQuantity(event.target.value)}
+                    min="1"
+                    step="1"
+                    required
+                  />
                 </div>
               </div>
-              {formError && <p className="form-error" role="alert">{formError}</p>}
+              {formError && (
+                <p className="form-error" role="alert">
+                  {formError}
+                </p>
+              )}
               <div className="modal-actions">
-                <button className="cancel-btn" type="button" onClick={closeModal}>Cancel</button>
-                <button type="submit" className="add-btn">Create Order</button>
+                <button
+                  className="cancel-btn"
+                  type="button"
+                  onClick={closeModal}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="add-btn">
+                  Create Order
+                </button>
               </div>
             </form>
           </div>

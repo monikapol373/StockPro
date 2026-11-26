@@ -11,6 +11,7 @@ import { useToast } from "../context/ToastContext";
 import ExcelImport from "../components/ExcelImport";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 import { useAuditLog } from "../context/AuditLogContext";
+import BarcodeScanner from "../components/BarcodeScanner";
 
 const CATEGORIES = [
   "Raw Material",
@@ -104,6 +105,7 @@ const Inventory = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [notice, setNotice] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -260,11 +262,19 @@ const Inventory = () => {
     }));
     setProducts([...products, ...withIds]);
     toast.success(`${withIds.length} products imported from Excel successfully.`);
-    addLog({
-      action: "IMPORT",
-      module: "Inventory",
-      details: `Imported ${withIds.length} products from Excel`,
-    });
+  };
+
+  const handleBarcodeScan = (barcode) => {
+    const found = products.find(
+      (p) => p.id === barcode || p.name?.toLowerCase() === barcode.toLowerCase()
+    );
+    if (found) {
+      toast.success(`Found: ${found.name} — ${found.quantity} ${found.unit} in stock`);
+      openStockModal(found);
+      setShowScanner(false);
+    } else {
+      toast.error(`Product not found for barcode: ${barcode}`);
+    }
   };
 
   const openAddModal = () => {
@@ -284,47 +294,42 @@ const Inventory = () => {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    const name = formData.name.trim();
-    const price = Number(formData.price);
-    const qty = Number(formData.quantity);
-    const minStockRaw = formData.minStock === "" ? undefined : Number(formData.minStock);
+  e.preventDefault();
+  const name = formData.name.trim();
+  const price = Number(formData.price);
+  const qty = Number(formData.quantity);
+  const minStockRaw = formData.minStock === "" ? undefined : Number(formData.minStock);
 
-    if (!name) { setFormError("Product name is required."); return; }
-    if (minStockRaw !== undefined && (!Number.isInteger(minStockRaw) || minStockRaw < 0)) {
-      setFormError("Low stock alert level must be a whole number, 0 or more."); return;
-    }
-    if (!Number.isFinite(price) || price < 0) { setFormError("Price must be 0 or more."); return; }
-    if (!editingProduct && (!Number.isInteger(qty) || qty < 0)) {
-      setFormError("Quantity must be a whole number, 0 or more."); return;
-    }
-    const duplicate = products.some(
-      (product) => product.name.toLowerCase() === name.toLowerCase() && product.id !== editingProduct?.id
-    );
-    if (duplicate) { setFormError("A product with this name already exists."); return; }
+  if (!name) { setFormError("Product name is required."); return; }
+  if (minStockRaw !== undefined && (!Number.isInteger(minStockRaw) || minStockRaw < 0)) {
+    setFormError("Low stock alert level must be a whole number, 0 or more."); return;
+  }
+  if (!Number.isFinite(price) || price < 0) { setFormError("Price must be 0 or more."); return; }
+  if (!editingProduct && (!Number.isInteger(qty) || qty < 0)) {
+    setFormError("Quantity must be a whole number, 0 or more."); return;
+  }
+  const duplicate = products.some(
+    (product) => product.name.toLowerCase() === name.toLowerCase() && product.id !== editingProduct?.id
+  );
+  if (duplicate) { setFormError("A product with this name already exists."); return; }
 
-    if (editingProduct) {
-      setProducts(products.map((product) =>
-        product.id === editingProduct.id
-          ? { ...product, name, category: formData.category, unit: formData.unit, price, minStock: minStockRaw, status: getStockStatus({ ...product, minStock: minStockRaw }) }
-          : product
-      ));
-    } else {
-      const newProduct = {
-        id: nextProductId(), name, category: formData.category,
-        quantity: qty, unit: formData.unit, price, minStock: minStockRaw,
-      };
-      newProduct.status = getStockStatus(newProduct);
-      setProducts([...products, newProduct]);
-    }
-    toast.success(editingProduct ? `${name} updated` : `${name} added to inventory`);
-     addLog({
-      action: editingProduct ? "UPDATE" : "CREATE",
-      module: "Inventory",
-      details: editingProduct ? `Updated product: ${name}` : `Added product: ${name}`,
-    });
-  };
-    handleCloseModal();
+  if (editingProduct) {
+    setProducts(products.map((product) =>
+      product.id === editingProduct.id
+        ? { ...product, name, category: formData.category, unit: formData.unit, price, minStock: minStockRaw, status: getStockStatus({ ...product, minStock: minStockRaw }) }
+        : product
+    ));
+  } else {
+    const newProduct = {
+      id: nextProductId(), name, category: formData.category,
+      quantity: qty, unit: formData.unit, price, minStock: minStockRaw,
+    };
+    newProduct.status = getStockStatus(newProduct);
+    setProducts([...products, newProduct]);
+  }
+  toast.success(editingProduct ? `${name} updated` : `${name} added to inventory`);
+  handleCloseModal();
+};
     
 
   const handleEdit = (product) => {
@@ -380,11 +385,6 @@ const Inventory = () => {
   const confirmDelete = () => {
   setProducts(products.filter((product) => product.id !== deleteTarget.id));
   toast.success(`${deleteTarget.name} deleted`);
-  addLog({
-    action: "DELETE",
-    module: "Inventory",
-    details: `Deleted product: ${deleteTarget.name}`,
-  });
   setDeleteTarget(null);
 };
 
@@ -440,6 +440,8 @@ const Inventory = () => {
     closeStockModal();
   };
 
+
+
   return (
     <div className="inventory-page">
       <InventoryView
@@ -457,6 +459,7 @@ const Inventory = () => {
         fileInputRef={fileInputRef}
         onImport={handleImportCSV}
         onShowExcelImport={() => setShowImport(true)}
+        onShowScanner={() => setShowScanner(true)}
         onAdd={openAddModal}
         onStock={openStockModal}
         onEdit={handleEdit}
@@ -480,6 +483,13 @@ const Inventory = () => {
         <ExcelImport
           onImport={handleExcelImport}
           onClose={() => setShowImport(false)}
+        />
+      )}
+
+      {showScanner && (
+        <BarcodeScanner
+        onScan={handleBarcodeScan}
+        onClose={() => setShowScanner(false)}
         />
       )}
 
@@ -598,7 +608,7 @@ const LevelBar = ({ p }) => {
 const InventoryView = ({
   products, filtered, suggestions, search, setSearch, category, setCategory,
   notice, clearNotice, onExport, onImportClick, fileInputRef, onImport,
-  onShowExcelImport, onAdd, onStock, onEdit, onDelete,
+  onShowExcelImport, onShowScanner, onAdd, onStock, onEdit, onDelete,
 }) => {
   const [view, setView] = useState("grid");
 
@@ -626,6 +636,7 @@ const InventoryView = ({
           <button type="button" className="inv-ghost" onClick={onExport}>Export CSV</button>
           <button type="button" className="inv-ghost" onClick={onImportClick}>Import CSV</button>
           <button type="button" className="inv-ghost" onClick={onShowExcelImport}>Import Excel</button>
+          <button type="button" className="inv-ghost" onClick={onShowScanner}>📷 Scan Barcode</button>
           <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={onImport} hidden />
           <button type="button" className="inv-primary" onClick={onAdd}>+ Add Product</button>
         </div>
