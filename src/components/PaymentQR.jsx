@@ -2,6 +2,10 @@ import React, { useState } from "react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+function getToken() {
+  return sessionStorage.getItem("stockpro:token") || "";
+}
+
 const PaymentQR = ({ order, product, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -13,7 +17,13 @@ const PaymentQR = ({ order, product, onClose }) => {
     setLoading(true);
     setError("");
 
-    const token = localStorage.getItem("token");
+    const token = getToken();
+
+    if (!token) {
+      setError("Session expired. Please logout and login again.");
+      setLoading(false);
+      return;
+    }
 
     fetch(`${API}/payment/create-qr`, {
       method: "POST",
