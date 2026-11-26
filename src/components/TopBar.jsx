@@ -37,8 +37,17 @@ const TopBar = ({ onMenu }) => {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
   const boxRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Apply theme
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => t === "dark" ? "light" : "dark");
 
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -64,7 +73,6 @@ const TopBar = ({ onMenu }) => {
     return out.slice(0, 8);
   }, [q, products, suppliers, orders, customerOrders]);
 
-  // bahar click ya Escape par dropdown band
   useEffect(() => {
     const onDown = (e) => {
       if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
@@ -73,7 +81,6 @@ const TopBar = ({ onMenu }) => {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // "/" dabane par search focus
   useEffect(() => {
     const onKey = (e) => {
       const tag = (e.target.tagName || "").toLowerCase();
@@ -132,11 +139,7 @@ const TopBar = ({ onMenu }) => {
           ref={inputRef}
           value={q}
           placeholder="Search pages, products, orders...   ( / )"
-          onChange={(e) => {
-            setQ(e.target.value);
-            setOpen(true);
-            setCursor(0);
-          }}
+          onChange={(e) => { setQ(e.target.value); setOpen(true); setCursor(0); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           aria-label="Global search"
@@ -171,6 +174,29 @@ const TopBar = ({ onMenu }) => {
         <span className="tb-date">
           <Icon name="calendar" size={15} /> {today}
         </span>
+
+        {/* Dark/Light Mode Toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          style={{
+            background: "none",
+            border: "1px solid var(--border, #334155)",
+            borderRadius: 20,
+            padding: "0.3rem 0.75rem",
+            cursor: "pointer",
+            fontSize: "1rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            color: "var(--text, #fff)",
+            transition: "all 0.2s",
+          }}
+        >
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
+
         <Link to="/alerts" className="tb-bell" aria-label={`${alertCount} active alerts`} title="Alert Center">
           <Icon name="bell" size={19} />
           {alertCount > 0 && <span className="tb-bell-count">{alertCount > 99 ? "99+" : alertCount}</span>}
