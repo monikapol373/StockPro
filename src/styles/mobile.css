@@ -1,18 +1,15 @@
 /* ============================================
    StockPro — Mobile Responsive Fixes
-   Import this LAST in main.jsx
    ============================================ */
 
 /* ===== Global ===== */
 @media (max-width: 768px) {
   * { box-sizing: border-box; }
 
-  /* Page padding */
   .shell .main-content {
     padding: 0 12px 60px !important;
   }
 
-  /* Page headers */
   .pg-head, .inv-head {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -38,7 +35,6 @@
     text-align: center !important;
   }
 
-  /* Stats grid */
   .pg-stats, .inv-stats, .co-stats {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px !important;
@@ -52,7 +48,6 @@
     font-size: 1.3rem !important;
   }
 
-  /* Filter chips */
   .pg-chips, .inv-chips {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -65,15 +60,54 @@
   }
 }
 
+/* ===== TopBar Mobile ===== */
+@media (max-width: 768px) {
+  .tb {
+    padding: 0.5rem 0.75rem !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .tb-greet {
+    display: none !important;
+  }
+
+  .tb-search {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .tb-search input {
+    font-size: 0.8rem !important;
+  }
+
+  .tb-date {
+    display: none !important;
+  }
+
+  .tb-user strong,
+  .tb-user small {
+    display: none !important;
+  }
+
+  .tb-right {
+    gap: 0.4rem !important;
+  }
+
+  /* Notification dropdown — full width on mobile */
+  .tb-right > div[style*="position: relative"] > div[style*="position: absolute"] {
+    right: -60px !important;
+    width: 92vw !important;
+  }
+}
+
 /* ===== Inventory ===== */
 @media (max-width: 768px) {
-  /* Cards grid */
   .inv-grid {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
 
-  /* Table scroll */
   .inv-tablewrap {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
@@ -83,7 +117,6 @@
     min-width: 600px !important;
   }
 
-  /* Reorder rail */
   .inv-rail {
     display: flex !important;
     flex-direction: column !important;
@@ -94,7 +127,6 @@
     width: 100% !important;
   }
 
-  /* Search bar */
   .inv-tools {
     flex-direction: column !important;
     gap: 10px !important;
@@ -160,14 +192,24 @@
     width: 100% !important;
     display: flex !important;
     gap: 8px !important;
+    flex-wrap: wrap !important;
   }
 
   .co-act button {
     flex: 1 !important;
+    min-width: 100px !important;
   }
 
   .co-cover {
     width: 100% !important;
+  }
+}
+
+/* ===== Payment QR Modal ===== */
+@media (max-width: 768px) {
+  .modal[style*="max-width: 420"] {
+    width: 95vw !important;
+    max-width: 95vw !important;
   }
 }
 
@@ -193,10 +235,33 @@
   .cc-alerts {
     grid-template-columns: 1fr !important;
   }
+
+  .cc-row-b,
+  .cc-row-c,
+  .cc-row-d,
+  .cc-row-e {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cc-actions {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .cc-tiles-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
-/* ===== Suppliers / Orders ===== */
+/* ===== Suppliers ===== */
 @media (max-width: 768px) {
+  .sp-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sp-card {
+    padding: 1rem !important;
+  }
+
   .sup-table-wrap,
   .orders-tablewrap,
   .mv-tablewrap {
@@ -231,12 +296,16 @@
 
 /* ===== Reports ===== */
 @media (max-width: 768px) {
-  .rp-kpis {
-    grid-template-columns: repeat(2, 1fr) !important;
+  .rpt-dl {
+    grid-template-columns: 1fr !important;
   }
 
-  .rp-grid {
+  .rpt-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .rp-kpis {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .rp-actions {
@@ -245,6 +314,79 @@
 
   .rp-actions button {
     flex: 1 1 calc(50% - 4px) !important;
+  }
+}
+
+/* ===== Alert Center ===== */
+@media (max-width: 768px) {
+  .al-layout {
+    flex-direction: column !important;
+  }
+
+  .al-log {
+    width: 100% !important;
+  }
+
+  .al-tabs {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 4px !important;
+  }
+
+  .al-tabs button {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Alert email buttons */
+  .pg-head > div:last-child {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .pg-head > div:last-child button {
+    flex: 1 1 calc(50% - 4px) !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ===== Audit Log Timeline ===== */
+@media (max-width: 768px) {
+  .al-wrap {
+    padding: 1rem !important;
+  }
+
+  .al-header {
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  .al-stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .al-filters {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .al-search {
+    width: 100% !important;
+  }
+
+  .al-select {
+    flex: 1 !important;
+  }
+
+  /* Timeline cards */
+  .al-filters > div:last-child {
+    width: 100% !important;
+    justify-content: flex-end !important;
   }
 }
 
@@ -334,7 +476,19 @@
   }
 }
 
-/* ===== Bottom navigation hint ===== */
+/* ===== Barcode Scanner ===== */
+@media (max-width: 768px) {
+  .bs-modal {
+    width: 95vw !important;
+    max-height: 90vh !important;
+  }
+
+  .bs-viewfinder {
+    height: 220px !important;
+  }
+}
+
+/* ===== Bottom nav ===== */
 @media (max-width: 768px) {
   .sb {
     padding-bottom: 20px !important;
@@ -349,5 +503,10 @@
   .pg-primary, .inv-primary {
     font-size: 0.82rem !important;
     padding: 0.5rem 0.9rem !important;
+  }
+
+  /* Supplier star rating */
+  .sp-card dl.sp-contact {
+    font-size: 0.8rem !important;
   }
 }
