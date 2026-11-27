@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050d1a"/>
+      <stop offset="100%" style="stop-color:#0a1b31"/>
+    </linearGradient>
+    <linearGradient id="logo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+
+  <!-- StockPro Box Logo — same as Logo.jsx -->
+  <g transform="translate(106, 80) scale(12.5)" fill="none" stroke="url(#logo)" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/>
+    <path d="M3 7l9 5 9-5M12 12v10"/>
+  </g>
+
+  <!-- StockPro text -->
+  <text x="256" y="400" font-family="Inter,Arial,sans-serif" font-size="72" font-weight="400" fill="#e8f1fa" text-anchor="middle">Stock</text>
+  <text x="256" y="400" font-family="Inter,Arial,sans-serif" font-size="72" font-weight="400" fill="#e8f1fa" text-anchor="middle">
+    <tspan fill="#e8f1fa" font-weight="400">Stock</tspan><tspan fill="#22d3ee" font-weight="700">Pro</tspan>
+  </text>
+</svg>

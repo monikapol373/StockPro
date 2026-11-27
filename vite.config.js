@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.svg'],
+      includeAssets: ['pwa-icon.svg'],
       manifest: {
         name: 'StockPro — Inventory Intelligence',
         short_name: 'StockPro',
@@ -20,25 +20,20 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'pwa-192x192.svg',
+            src: 'pwa-icon.svg',
             sizes: '192x192',
-            type: 'image/svg',
+            type: 'image/svg+xml',
           },
           {
-            src: 'pwa-512x512.svg',
+            src: 'pwa-icon.svg',
             sizes: '512x512',
-            type: 'image/svg',
-          },
-          {
-            src: 'pwa-512x512.svg',
-            sizes: '512x512',
-            type: 'image/svg',
+            type: 'image/svg+xml',
             purpose: 'any maskable',
           },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,svg,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/stockpro-production-c85ee482\.up\.railway\.app\/.*/i,
