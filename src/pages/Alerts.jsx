@@ -4,6 +4,7 @@ import OrdersContext from "../context/OrdersContext";
 import BomContext from "../context/BomContext";
 import ProductionContext from "../context/ProductionContext";
 import CustomerOrdersContext from "../context/CustomerOrdersContext";
+import AuthContext from "../context/AuthContext";
 import {
   buildImpactChain,
   getAtRiskCustomerOrders,
@@ -12,6 +13,9 @@ import {
   getOverduePurchaseOrders,
 } from "../utils/intelligence";
 import DecisionLogContext from "../context/DecisionLogContext";
+import { useToast } from "../context/ToastContext";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const ICON = {
   short: <path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8" />,
@@ -53,7 +57,6 @@ const Chain = ({ product, chainGroups }) => (
       <b>{product.name}</b>
       <span>{product.quantity} {product.unit} left</span>
     </div>
-
     {chainGroups.map((g, i) => (
       <React.Fragment key={i}>
         <i className="al-arrow">→</i>
@@ -62,7 +65,6 @@ const Chain = ({ product, chainGroups }) => (
           <b>{g.productionOrder.id}</b>
           <span>{g.bom.finishedProductName}</span>
         </div>
-
         {g.customerOrders.length > 0 ? (
           g.customerOrders.map((co) => (
             <React.Fragment key={co.id}>
@@ -95,26 +97,83 @@ const Alerts = () => {
   const { productions = [] } = useContext(ProductionContext);
   const { customerOrders = [] } = useContext(CustomerOrdersContext);
   const { decisions = [], logDecision, isResolved } = useContext(DecisionLogContext);
+  const { user } = useContext(AuthContext);
+  const toast = useToast();
 
   const [tab, setTab] = useState("all");
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [delayedEmailLoading, setDelayedEmailLoading] = useState(false);
 
   const lowStock = useMemo(() => getLowStockProducts(products), [products]);
   const overduePOs = useMemo(() => getOverduePurchaseOrders(orders), [orders]);
-  const blockedProduction = useMemo(
-    () => getBlockedProductionOrders(productions, boms, products),
-    [productions, boms, products]
-  );
-  const atRiskCustomerOrders = useMemo(
-    () => getAtRiskCustomerOrders(customerOrders, products),
-    [customerOrders, products]
-  );
+  const blockedProduction = useMemo(() => getBlockedProductionOrders(productions, boms, products), [productions, boms, products]);
+  const atRiskCustomerOrders = useMemo(() => getAtRiskCustomerOrders(customerOrders, products), [customerOrders, products]);
+
+  const sendLowStockEmail = async () => {
+    if (lowStock.length === 0) { toast.info("No low stock items to report."); return; }
+    setEmailLoading(true);
+    try {
+      const token = sessionStorage.getItem("stockpro:token") || "";
+      const res = await fetch(`${API}/alerts/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          type: "low-stock",
+          to: user?.email || "",
+          data: lowStock.map((p) => ({
+            name: p.name,
+            quantity: p.quantity,
+            unit: p.unit || "units",
+            minStock: p.minStock || 0,
+            status: p.status,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success("Low stock alert email sent successfully!");
+    } catch (err) {
+      toast.error("Failed to send email: " + err.message);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const sendDelayedOrdersEmail = async () => {
+    if (overduePOs.length === 0) { toast.info("No overdue orders to report."); return; }
+    setDelayedEmailLoading(true);
+    try {
+      const token = sessionStorage.getItem("stockpro:token") || "";
+      const res = await fetch(`${API}/alerts/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          type: "delayed-orders",
+          to: user?.email || "",
+          data: overduePOs.map((o) => ({
+            id: o.id,
+            supplierName: o.supplierName,
+            productName: o.productName,
+            expectedDate: o.expectedDate,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success("Delayed orders alert email sent successfully!");
+    } catch (err) {
+      toast.error("Failed to send email: " + err.message);
+    } finally {
+      setDelayedEmailLoading(false);
+    }
+  };
 
   const items = [
     ...lowStock.map((p) => ({
       key: `s-${p.id}`,
       kind: "short",
-      tone: Number(p.quantity) === 0 ? "bad" : "warn",
-      title: `${p.name} is running low`,
+      tone: "warn",
+      title: `${p.name} — Low Stock`,
       detail: `${p.quantity} ${p.unit} remaining`,
       refId: `low-stock-${p.id}`,
       product: p,
@@ -178,9 +237,27 @@ const Alerts = () => {
           <h1>Alert Center</h1>
           <p>Live findings from across inventory, procurement, production and orders.</p>
         </div>
-        <div className="al-badges">
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <span className="pg-pill bad">{critical} critical open</span>
           <span className="pg-pill info">{open} open in total</span>
+          <button
+            type="button"
+            className="pg-primary sm"
+            onClick={sendLowStockEmail}
+            disabled={emailLoading || lowStock.length === 0}
+            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+          >
+            {emailLoading ? "Sending..." : `📧 Email Low Stock (${lowStock.length})`}
+          </button>
+          <button
+            type="button"
+            className="pg-ghost sm"
+            onClick={sendDelayedOrdersEmail}
+            disabled={delayedEmailLoading || overduePOs.length === 0}
+            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+          >
+            {delayedEmailLoading ? "Sending..." : `🕒 Email Delayed Orders (${overduePOs.length})`}
+          </button>
         </div>
       </header>
 
