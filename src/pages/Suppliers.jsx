@@ -8,6 +8,30 @@ import { useToast } from "../context/ToastContext";
 
 const emptyForm = { name: "", contactPerson: "", phone: "", email: "", status: "Active" };
 
+const riskTone = (lvl) =>
+  lvl === "High Risk" ? "bad" : lvl === "Medium Risk" ? "warn" : lvl === "Low Risk" ? "good" : "info";
+
+const starRating = (fulfillPercent, latePercent, totalOrders) => {
+  if (totalOrders === 0) return 0;
+  let score = 5;
+  if (fulfillPercent < 50) score -= 2;
+  else if (fulfillPercent < 80) score -= 1;
+  if (latePercent > 50) score -= 2;
+  else if (latePercent > 25) score -= 1;
+  return Math.max(1, score);
+};
+
+const StarRating = ({ stars }) => (
+  <div style={{ display: "flex", gap: 2, margin: "0.4rem 0 0.6rem" }}>
+    {[1, 2, 3, 4, 5].map((s) => (
+      <span key={s} style={{ fontSize: "1.1rem", color: s <= stars ? "#f59e0b" : "var(--line, #334155)" }}>★</span>
+    ))}
+    <small style={{ color: "var(--mute)", fontSize: "0.75rem", marginLeft: 6, alignSelf: "center" }}>
+      {stars === 0 ? "No orders yet" : stars >= 4 ? "Excellent" : stars === 3 ? "Good" : stars === 2 ? "Average" : "Poor"}
+    </small>
+  </div>
+);
+
 const Suppliers = () => {
   const { suppliers = [], setSuppliers } = useContext(SuppliersContext);
   const { orders = [] } = useContext(OrdersContext);
@@ -65,49 +89,28 @@ const Suppliers = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const name = formData.name.trim();
     const contactPerson = formData.contactPerson.trim();
     const phone = formData.phone.trim();
     const email = formData.email.trim();
 
-    if (!name) {
-      setFormError("Supplier name is required.");
-      return;
-    }
-
-    if (phone && !/^[0-9+\-\s]{7,15}$/.test(phone)) {
-      setFormError("Enter a valid phone number (7 to 15 digits).");
-      return;
-    }
-
-    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
-      setFormError("Enter a valid email address.");
-      return;
-    }
+    if (!name) { setFormError("Supplier name is required."); return; }
+    if (phone && !/^[0-9+\-\s]{7,15}$/.test(phone)) { setFormError("Enter a valid phone number (7 to 15 digits)."); return; }
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) { setFormError("Enter a valid email address."); return; }
 
     const duplicate = suppliers.some(
       (s) => s.name.toLowerCase() === name.toLowerCase() && s.id !== editingSupplier?.id
     );
-
-    if (duplicate) {
-      setFormError("A supplier with this name already exists.");
-      return;
-    }
+    if (duplicate) { setFormError("A supplier with this name already exists."); return; }
 
     if (editingSupplier) {
-      setSuppliers(
-        suppliers.map((s) =>
-          s.id === editingSupplier.id
-            ? { ...s, name, contactPerson, phone, email, status: formData.status }
-            : s
-        )
-      );
+      setSuppliers(suppliers.map((s) =>
+        s.id === editingSupplier.id
+          ? { ...s, name, contactPerson, phone, email, status: formData.status }
+          : s
+      ));
     } else {
-      setSuppliers([
-        ...suppliers,
-        { id: nextSupplierId(), name, contactPerson, phone, email, status: formData.status },
-      ]);
+      setSuppliers([...suppliers, { id: nextSupplierId(), name, contactPerson, phone, email, status: formData.status }]);
     }
 
     toast.success(editingSupplier ? `${name} updated` : `${name} added`);
@@ -118,17 +121,11 @@ const Suppliers = () => {
     const openOrders = orders.filter(
       (o) => o.supplierId === supplier.id && getOrderStatus(o) !== "Received"
     );
-
     if (openOrders.length > 0) {
-      setNotice(
-        `"${supplier.name}" cannot be deleted: open purchase orders ${openOrders
-          .map((o) => o.id)
-          .join(", ")}.`
-      );
+      setNotice(`"${supplier.name}" cannot be deleted: open purchase orders ${openOrders.map((o) => o.id).join(", ")}.`);
       toast.error(`${supplier.name} has open purchase orders`);
       return;
     }
-
     setNotice("");
     setDeleteTarget(supplier);
   };
@@ -149,14 +146,13 @@ const Suppliers = () => {
   });
 
   const riskOf = (s) => calculateSupplierRisk(s, orders);
-  const riskTone = (lvl) =>
-    lvl === "High Risk" ? "bad" : lvl === "Medium Risk" ? "warn" : lvl === "Low Risk" ? "good" : "info";
   const shown = filtered.filter((s) => statusFilter === "All" || s.status === statusFilter);
   const risks = suppliers.map(riskOf);
   const withOrders = risks.filter((r) => r.totalOrders > 0);
   const avgFulfil = withOrders.length
     ? Math.round(withOrders.reduce((a, r) => a + Number(r.fulfillmentPercent || 0), 0) / withOrders.length)
     : 0;
+
   const stats = [
     { l: "Total Suppliers", v: suppliers.length, c: "#8b5cf6", s: "in your network" },
     { l: "Active", v: suppliers.filter((s) => s.status === "Active").length, c: "#34d399", s: "currently trading" },
@@ -215,6 +211,7 @@ const Suppliers = () => {
       <div className="sp-grid">
         {shown.map((s, i) => {
           const risk = riskOf(s);
+          const stars = starRating(risk.fulfillmentPercent, risk.latePercent, risk.totalOrders);
           const initials = s.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
           return (
             <article className="sp-card" key={s.id}>
@@ -231,6 +228,9 @@ const Suppliers = () => {
                 <span className={`pg-pill ${riskTone(risk.riskLevel)}`}>{risk.riskLevel}</span>
                 <small>{risk.totalOrders > 0 ? `${risk.totalOrders} order(s) placed` : "No orders yet"}</small>
               </div>
+
+              {/* Star Rating */}
+              <StarRating stars={stars} />
 
               {risk.totalOrders > 0 && (
                 <div className="sp-metrics">
@@ -277,7 +277,7 @@ const Suppliers = () => {
                 <h2>{editingSupplier ? "Edit Supplier" : "Add New Supplier"}</h2>
                 <p>{editingSupplier ? "Update supplier details." : "Add a new supplier."}</p>
               </div>
-              <button className="close-btn" onClick={handleCloseModal}> ✕ </button>
+              <button className="close-btn" onClick={handleCloseModal}>✕</button>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -286,22 +286,18 @@ const Suppliers = () => {
                   <label>Supplier Name</label>
                   <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Enter supplier name" />
                 </div>
-
                 <div className="form-group">
                   <label>Contact Person</label>
                   <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} placeholder="Contact name" />
                 </div>
-
                 <div className="form-group">
                   <label>Phone</label>
                   <input type="text" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone number" />
                 </div>
-
                 <div className="form-group">
                   <label>Email</label>
                   <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="supplier@example.com" />
                 </div>
-
                 <div className="form-group">
                   <label>Status</label>
                   <select name="status" value={formData.status} onChange={handleChange}>
